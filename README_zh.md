@@ -65,8 +65,10 @@ cd claude_code_bridge
 
 > 如果你的 Claude/Codex/Gemini 运行在 WSL 中，请使用此方式。
 
+> **⚠️ 警告：** 请勿使用 root/管理员权限安装或运行 ccb。请先切换到普通用户（`su - 用户名` 或使用 `adduser` 创建新用户）。
+
 ```bash
-# 在 WSL 终端中运行
+# 在 WSL 终端中运行（使用普通用户，不要用 root）
 git clone https://github.com/bfly123/claude_code_bridge.git
 cd claude_code_bridge
 ./install.sh install

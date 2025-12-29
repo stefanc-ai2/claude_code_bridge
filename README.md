@@ -67,8 +67,10 @@ cd claude_code_bridge
 
 > Use this if your Claude/Codex/Gemini runs in WSL.
 
+> **⚠️ WARNING:** Do NOT install or run ccb as root/administrator. Switch to a normal user first (`su - username` or create one with `adduser`).
+
 ```bash
-# Run inside WSL terminal
+# Run inside WSL terminal (as normal user, NOT root)
 git clone https://github.com/bfly123/claude_code_bridge.git
 cd claude_code_bridge
 ./install.sh install
