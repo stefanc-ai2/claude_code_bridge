@@ -3,6 +3,7 @@ __pycache__/
 .codex-session
 .gemini-session
 .claude-session
+.opencode-session
 .claude/
 *.mp4
 tmp/
