@@ -1,12 +1,13 @@
 """
-process_lock.py - Per-provider file lock to serialize request-response cycles.
+process_lock.py - Per-provider, per-directory file lock to serialize request-response cycles.
 
-Each provider (codex, gemini, opencode) has its own lock file, allowing
-concurrent use of different providers while ensuring serial access within
-each provider.
+Each provider (codex, gemini, opencode) has its own lock file per working directory,
+allowing concurrent use across different directories while ensuring serial access
+within the same directory.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import time
@@ -37,22 +38,28 @@ def _is_pid_alive(pid: int) -> bool:
 
 
 class ProviderLock:
-    """Per-provider file lock to serialize request-response cycles.
+    """Per-provider, per-directory file lock to serialize request-response cycles.
 
-    Lock files are stored in ~/.ccb/run/{provider}.lock
+    Lock files are stored in ~/.ccb/run/{provider}-{cwd_hash}.lock
     """
 
-    def __init__(self, provider: str, timeout: float = 60.0):
-        """Initialize lock for a specific provider.
+    def __init__(self, provider: str, timeout: float = 60.0, cwd: str = None):
+        """Initialize lock for a specific provider and working directory.
 
         Args:
             provider: One of "codex", "gemini", "opencode"
             timeout: Max seconds to wait for lock acquisition
+            cwd: Working directory for lock scope (defaults to current directory)
         """
         self.provider = provider
         self.timeout = timeout
         self.lock_dir = Path.home() / ".ccb" / "run"
-        self.lock_file = self.lock_dir / f"{provider}.lock"
+
+        # Use working directory hash for per-directory locking
+        if cwd is None:
+            cwd = os.getcwd()
+        cwd_hash = hashlib.md5(cwd.encode()).hexdigest()[:8]
+        self.lock_file = self.lock_dir / f"{provider}-{cwd_hash}.lock"
         self._fd: Optional[int] = None
         self._acquired = False
 

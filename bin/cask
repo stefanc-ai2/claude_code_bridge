@@ -6,9 +6,11 @@ Designed to be used with Claude Code's run_in_background=true.
 If --output is provided, the reply is written atomically to that file and stdout stays empty.
 """
 from __future__ import annotations
+import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -21,7 +23,33 @@ from process_lock import ProviderLock
 
 COMPLETION_MARKER = (os.environ.get("CCB_EXECUTION_COMPLETE_MARKER") or "[EXECUTION_COMPLETE]").strip() or "[EXECUTION_COMPLETE]"
 
-import time
+SUPERVISOR_PROMPT = """## Executor Mode: codex+opencode
+You are the SUPERVISOR, NOT the executor.
+- Do NOT directly edit repo files yourself.
+- Break down tasks into clear instructions for OpenCode.
+- Use oask to delegate execution to OpenCode.
+- Review OpenCode results and iterate if needed.
+
+"""
+
+
+def _get_executor_from_roles() -> Optional[str]:
+    """Read executor from roles config (priority: session > project > global)."""
+    candidates = [
+        Path(".autoflow/roles.session.json"),
+        Path(".autoflow/roles.json"),
+        Path.home() / ".config" / "cca" / "roles.json",
+    ]
+    for cfg_path in candidates:
+        if cfg_path.exists():
+            try:
+                data = json.loads(cfg_path.read_text(encoding="utf-8"))
+                executor = data.get("executor")
+                if executor:
+                    return executor
+            except Exception:
+                pass
+    return None
 
 
 def _has_completion_marker(text: str) -> bool:
@@ -197,6 +225,11 @@ def main(argv: list[str]) -> int:
 
             # Reset log state to ignore any messages before lock acquisition
             comm.log_reader.capture_state()
+
+            # Check if supervisor mode is enabled via roles config
+            executor = _get_executor_from_roles()
+            if executor == "codex+opencode":
+                message = SUPERVISOR_PROMPT + message
 
             _, state = comm._send_message(_with_completion_marker_request(message))
             reply, exit_code = _wait_for_complete_reply(comm.log_reader, state, timeout, quiet)
