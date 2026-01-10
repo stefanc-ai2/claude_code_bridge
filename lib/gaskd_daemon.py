@@ -147,8 +147,15 @@ class _SessionWorker(threading.Thread):
         self.session_key = session_key
         self._q: "queue.Queue[_QueuedTask]" = queue.Queue()
         self._stop = threading.Event()
+        try:
+            idle_timeout = float(os.environ.get("CCB_GASKD_WORKER_IDLE_TIMEOUT_S", "300") or "300")
+        except Exception:
+            idle_timeout = 300.0
+        self._idle_timeout_s = max(0.0, idle_timeout)
+        self._last_activity = time.time()
 
     def enqueue(self, task: _QueuedTask) -> None:
+        self._last_activity = time.time()
         self._q.put(task)
 
     def stop(self) -> None:
@@ -159,8 +166,12 @@ class _SessionWorker(threading.Thread):
             try:
                 task = self._q.get(timeout=0.2)
             except queue.Empty:
+                if self._idle_timeout_s > 0 and (time.time() - self._last_activity) >= self._idle_timeout_s:
+                    _write_log(f"[INFO] worker idle timeout; session={self.session_key} exiting")
+                    return
                 continue
             try:
+                self._last_activity = time.time()
                 task.result = self._handle_task(task)
             except Exception as exc:
                 _write_log(f"[ERROR] session={self.session_key} req_id={task.req_id} {exc}")
@@ -173,6 +184,7 @@ class _SessionWorker(threading.Thread):
                     done_ms=None,
                 )
             finally:
+                self._last_activity = time.time()
                 task.done_event.set()
 
     def _handle_task(self, task: _QueuedTask) -> GaskdResult:
@@ -318,7 +330,7 @@ class _WorkerPool:
 
         with self._lock:
             worker = self._workers.get(session_key)
-            if worker is None:
+            if worker is None or not worker.is_alive():
                 worker = _SessionWorker(session_key)
                 self._workers[session_key] = worker
                 worker.start()
@@ -344,9 +356,6 @@ class GaskdServer:
 
         class Handler(socketserver.StreamRequestHandler):
             def handle(self) -> None:
-                with self.server.activity_lock:
-                    self.server.active_requests += 1
-                    self.server.last_activity = time.time()
                 try:
                     line = self.rfile.readline()
                     if not line:
@@ -360,15 +369,30 @@ class GaskdServer:
                     return
 
                 if msg.get("type") == "gask.ping":
+                    try:
+                        with self.server.activity_lock:
+                            self.server.last_activity = time.time()
+                    except Exception:
+                        pass
                     self._write({"type": "gask.pong", "v": 1, "id": msg.get("id"), "exit_code": 0, "reply": "OK"})
                     return
 
                 if msg.get("type") == "gask.shutdown":
+                    try:
+                        with self.server.activity_lock:
+                            self.server.last_activity = time.time()
+                    except Exception:
+                        pass
                     self._write({"type": "gask.response", "v": 1, "id": msg.get("id"), "exit_code": 0, "reply": "OK"})
                     threading.Thread(target=self.server.shutdown, daemon=True).start()
                     return
 
                 if msg.get("type") != "gask.request":
+                    try:
+                        with self.server.activity_lock:
+                            self.server.last_activity = time.time()
+                    except Exception:
+                        pass
                     self._write({"type": "gask.response", "v": 1, "id": msg.get("id"), "exit_code": 1, "reply": "Invalid request"})
                     return
 
@@ -382,31 +406,48 @@ class GaskdServer:
                         output_path=str(msg.get("output_path")) if msg.get("output_path") else None,
                     )
                 except Exception as exc:
+                    try:
+                        with self.server.activity_lock:
+                            self.server.last_activity = time.time()
+                    except Exception:
+                        pass
                     self._write({"type": "gask.response", "v": 1, "id": msg.get("id"), "exit_code": 1, "reply": f"Bad request: {exc}"})
                     return
 
-                task = self.server.pool.submit(req)
-                task.done_event.wait(timeout=req.timeout_s + 5.0)
-                result = task.result
-                if not result:
-                    self._write({"type": "gask.response", "v": 1, "id": req.client_id, "exit_code": 2, "reply": ""})
-                    return
+                with self.server.activity_lock:
+                    self.server.active_requests += 1
+                    self.server.last_activity = time.time()
+                try:
+                    task = self.server.pool.submit(req)
+                    task.done_event.wait(timeout=req.timeout_s + 5.0)
+                    result = task.result
+                    if not result:
+                        self._write({"type": "gask.response", "v": 1, "id": req.client_id, "exit_code": 2, "reply": ""})
+                        return
 
-                self._write(
-                    {
-                        "type": "gask.response",
-                        "v": 1,
-                        "id": req.client_id,
-                        "req_id": result.req_id,
-                        "exit_code": result.exit_code,
-                        "reply": result.reply,
-                        "meta": {
-                            "session_key": result.session_key,
-                            "done_seen": result.done_seen,
-                            "done_ms": result.done_ms,
-                        },
-                    }
-                )
+                    self._write(
+                        {
+                            "type": "gask.response",
+                            "v": 1,
+                            "id": req.client_id,
+                            "req_id": result.req_id,
+                            "exit_code": result.exit_code,
+                            "reply": result.reply,
+                            "meta": {
+                                "session_key": result.session_key,
+                                "done_seen": result.done_seen,
+                                "done_ms": result.done_ms,
+                            },
+                        }
+                    )
+                finally:
+                    try:
+                        with self.server.activity_lock:
+                            if self.server.active_requests > 0:
+                                self.server.active_requests -= 1
+                            self.server.last_activity = time.time()
+                    except Exception:
+                        pass
 
             def _write(self, obj: dict) -> None:
                 try:
@@ -427,8 +468,6 @@ class GaskdServer:
                 finally:
                     try:
                         with self.server.activity_lock:
-                            if self.server.active_requests > 0:
-                                self.server.active_requests -= 1
                             self.server.last_activity = time.time()
                     except Exception:
                         pass
