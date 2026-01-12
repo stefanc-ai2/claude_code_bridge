@@ -20,22 +20,17 @@
 
 [English](README.md) | **中文**
 
-<img src="assets/demo.webp" alt="双窗口协作演示" width="900">
+<img src="assets/readme_previews/video2.gif" alt="任意终端窗口协作演示" width="900">
 
-<details>
-<summary><b>演示 (GIF)</b></summary>
-<br>
 
-<img src="assets/readme_previews/video1.gif" alt="演示 GIF 1" width="900">
+<img src="assets/readme_previews/video1.gif" alt="融合vscode使用" width="900">
 
-<img src="assets/readme_previews/video2.gif" alt="演示 GIF 2" width="900">
-</details>
 
 </div>
 
----
+--- 
 
-**简介：** 多模型协作能够有效避免模型偏见、认知漏洞和上下文限制，然而 MCP、Skills 等直接调用 API 方式存在诸多局限性。本项目打造了一套新的方案。
+**简介：** 多模型协作能够有效避免模型偏见、认知漏洞和上下文限制，然而 MCP、Skills 等直接调用 API 方式存在诸多局限性。本项目打造了一套新的可见即可得的方案。
 
 ## ⚡ 核心优势
 
@@ -48,14 +43,18 @@
 
 ---
 
+有人反复问我，和其他工作流软件的区别是什么，我用一句话回答：该项目只是不满api调用的agent交互方式而打造的可见可控的多模型通讯方案，该项目并不是工作流项目，但是基于它可以更容易发展出你所理想的工作流。
+
 <h2 align="center">🚀 v4.0 新版本特性</h2>
 
-> **为 tmux 优先、任意终端使用而重构**
+> **全新玩法：结合vscode使用（见上视频），打造一体化cli方案**
+
+> **为 tmux 优先、任意终端、远程使用而重构**
 
 - **全部重构**：结构更清晰，稳定性更强，也更易扩展。
 - **终端后端抽象层**：统一终端层（`TmuxBackend` / `WeztermBackend` / `Iterm2Backend`），支持自动检测与 WSL 路径处理。
 - **tmux 完美体验**：稳定布局 + 窗格标题/边框 + 会话级主题（CCB 运行期间启用，退出自动恢复）。
-- **支持任何终端**：只要能运行 tmux 就能获得完整多模型分屏体验（Windows 原生除外；建议 WSL/WezTerm + tmux）。
+- **支持任何终端**：只要能运行 tmux 就能获得完整多模型分屏体验（Windows 原生「建议wezterm」除外；其他都建议使用tmux）。
 
 ---
 

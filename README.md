@@ -23,22 +23,15 @@
 
 **English** | [中文](README_zh.md)
 
-<img src="assets/demo.webp" alt="Split-pane collaboration demo" width="900">
+<img src="assets/readme_previews/video2.gif" alt="Any-terminal collaboration demo" width="900">
 
-<details>
-<summary><b>Demo (GIF)</b></summary>
-<br>
-
-<img src="assets/readme_previews/video1.gif" alt="Demo GIF 1" width="900">
-
-<img src="assets/readme_previews/video2.gif" alt="Demo GIF 2" width="900">
-</details>
+<img src="assets/readme_previews/video1.gif" alt="VS Code integration demo" width="900">
 
 </div>
 
 ---
 
-**Introduction:** Multi-model collaboration effectively avoids model bias, cognitive blind spots, and context limitations. However, MCP, Skills and other direct API approaches have many limitations. This project offers a new solution.
+**Introduction:** Multi-model collaboration effectively avoids model bias, cognitive blind spots, and context limitations. However, MCP, Skills and other direct API approaches have many limitations. This project offers a new WYSIWYG solution.
 
 ## ⚡ Why ccb?
 
@@ -53,12 +46,16 @@
 
 <h2 align="center">🚀 What's New in v4.0</h2>
 
-> **Rebuilt for tmux-first, terminal-agnostic workflows**
+People keep asking how this differs from other workflow tools. My one-sentence answer: this project is a visible & controllable multi-model communication layer built out of dissatisfaction with API-style agent interactions; it is not a workflow project, but it makes it much easier to build the workflow you want on top.
+
+> **New way to play: pair it with VS Code (see video above) for an integrated CLI experience**
+
+> **Rebuilt for tmux-first, any terminal, and remote workflows**
 
 - **Full Refactor**: Cleaner structure, better stability, and easier extension.
 - **Terminal Backend Abstraction**: Unified terminal layer (`TmuxBackend` / `WeztermBackend` / `Iterm2Backend`) with auto-detection and WSL path handling.
 - **Perfect tmux Experience**: Stable layouts + pane titles/borders + session-scoped theming that restores on exit.
-- **Works in Any Terminal**: If your terminal can run tmux, CCB can provide the full multi-model split experience (except native Windows; use WSL/WezTerm + tmux).
+- **Works in Any Terminal**: If your terminal can run tmux, CCB can provide the full multi-model split experience (except native Windows; WezTerm recommended; otherwise just use tmux).
 
 ---
 
