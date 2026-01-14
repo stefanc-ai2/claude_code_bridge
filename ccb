@@ -730,12 +730,13 @@ class AILauncher:
         if forced in {"wezterm", "tmux"}:
             return forced
 
-        # When inside WezTerm pane, use wezterm
-        if os.environ.get("WEZTERM_PANE"):
-            return "wezterm"
-        # When inside tmux, use tmux
+        # When inside tmux, use tmux (check first - tmux is the "inner" environment
+        # when running inside WezTerm with tmux)
         if os.environ.get("TMUX") or os.environ.get("TMUX_PANE"):
             return "tmux"
+        # When inside WezTerm pane (without tmux), use wezterm
+        if os.environ.get("WEZTERM_PANE"):
+            return "wezterm"
 
         # Not inside any multiplexer:
         # Prefer split-capable terminals (WezTerm) when available,

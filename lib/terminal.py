@@ -889,10 +889,11 @@ _backend_cache: Optional[TerminalBackend] = None
 
 def detect_terminal() -> Optional[str]:
     # Priority 1: detect *current* terminal session from env vars.
-    if os.environ.get("WEZTERM_PANE"):
-        return "wezterm"
+    # Check tmux first - it's the "inner" environment when running WezTerm with tmux.
     if os.environ.get("TMUX") or os.environ.get("TMUX_PANE"):
         return "tmux"
+    if os.environ.get("WEZTERM_PANE"):
+        return "wezterm"
 
     # WSL-specific: WezTerm on Windows does not always propagate WEZTERM_PANE into tmux server env
     # (or custom shells), but wezterm CLI may still be reachable via interop.
