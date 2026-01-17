@@ -377,30 +377,8 @@ function Install-CodexSkills {
       return
     }
 
-    $shouldWrite = $false
-    if (-not (Test-Path $dstSkillMd)) {
-      $shouldWrite = $true
-    } else {
-      $dstContent = Get-Content -Raw -Path $dstSkillMd -ErrorAction SilentlyContinue
-      if ($dstContent -match "managed-by:\\s*ccb-installer") {
-        $shouldWrite = $true
-      } else {
-        $legacySkillMd = Join-Path $srcDir "SKILL.md"
-        if (Test-Path $legacySkillMd) {
-          $legacyContent = Get-Content -Raw -Path $legacySkillMd -ErrorAction SilentlyContinue
-          if ($dstContent -eq $legacyContent) {
-            $shouldWrite = $true
-          }
-        }
-      }
-    }
-
-    if ($shouldWrite) {
-      Copy-Item -Force $srcSkillMd $dstSkillMd
-      Write-Host "  Installed Codex skill: $skillName"
-    } else {
-      Write-Host "  Kept existing Codex skill (custom SKILL.md): $skillName"
-    }
+    Copy-Item -Force $srcSkillMd $dstSkillMd
+    Write-Host "  Updated Codex skill: $skillName"
   }
   Write-Host "Updated Codex skills directory: $skillsDst"
 }
@@ -453,41 +431,8 @@ function Install-ClaudeConfig {
         return
       }
 
-      $shouldWrite = $false
-      if (-not (Test-Path $dstSkillMd)) {
-        $shouldWrite = $true
-      } else {
-        $dstContent = Get-Content -Raw -Path $dstSkillMd -ErrorAction SilentlyContinue
-        if ($dstContent -match "managed-by:\\s*ccb-installer") {
-          $shouldWrite = $true
-        } else {
-          $legacySkillMd = Join-Path $srcDir "SKILL.md"
-          if (Test-Path $legacySkillMd) {
-            $legacyContent = Get-Content -Raw -Path $legacySkillMd -ErrorAction SilentlyContinue
-            if ($dstContent -eq $legacyContent) {
-              $shouldWrite = $true
-            }
-          }
-
-          if (-not $shouldWrite -and $dstContent -match "<<'EOF'") {
-            if ($Yes -or $env:CCB_INSTALL_ASSUME_YES -eq "1") {
-              $shouldWrite = $true
-            } elseif ([Environment]::UserInteractive) {
-              $reply = Read-Host "Skill '$skillName' looks like legacy bash heredoc. Replace with PowerShell here-string? (y/N)"
-              if ($reply.Trim().ToLower() -in @("y", "yes")) {
-                $shouldWrite = $true
-              }
-            }
-          }
-        }
-      }
-
-      if ($shouldWrite) {
-        Copy-Item -Force $srcSkillMd $dstSkillMd
-        Write-Host "  Installed skill: $skillName"
-      } else {
-        Write-Host "  Kept existing skill (custom SKILL.md): $skillName"
-      }
+      Copy-Item -Force $srcSkillMd $dstSkillMd
+      Write-Host "  Updated skill: $skillName"
     }
 
     $srcDocs = Join-Path $srcSkills "docs"

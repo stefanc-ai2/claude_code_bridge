@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Code Bridge (ccb) v4.1.0
+# Claude Code Bridge (ccb) v4.1.1
 
 **基于终端分屏的 Claude & Codex & Gemini 丝滑协作工具**
 
@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-4.1.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-4.1.1-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -436,6 +436,11 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
 
 <details>
 <summary><b>更新历史</b></summary>
+
+### v4.1.1
+- **CLI 修复**: 修复 `ccb up` 在 tmux 中重启时参数丢失 (如 `-a`) 的问题
+- **体验优化**: 非交互式环境下提供更清晰的错误提示
+- **安装**: 强制更新 skills 以确保应用最新版本
 
 ### v4.1.0
 - **异步护栏**: `cask/gask/oask` 执行后输出护栏提示，防止 Claude 继续轮询

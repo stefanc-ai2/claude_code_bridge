@@ -612,20 +612,8 @@ install_claude_skills() {
     local dst_dir="$skills_dst/$skill_name"
     local dst_skill_md="$dst_dir/SKILL.md"
     mkdir -p "$dst_dir"
-    if [[ -f "$dst_skill_md" ]]; then
-      if grep -qF "managed-by: ccb-installer" "$dst_skill_md" 2>/dev/null; then
-        cp -f "$src_skill_md" "$dst_skill_md"
-        echo "  Updated skill: $skill_name"
-      elif [[ -f "$skill_dir/SKILL.md" ]] && cmp -s "$dst_skill_md" "$skill_dir/SKILL.md" 2>/dev/null; then
-        cp -f "$src_skill_md" "$dst_skill_md"
-        echo "  Updated legacy skill: $skill_name"
-      else
-        echo "  Kept existing skill (custom SKILL.md): $skill_name"
-      fi
-    else
-      cp -f "$src_skill_md" "$dst_skill_md"
-      echo "  Installed skill: $skill_name"
-    fi
+    cp -f "$src_skill_md" "$dst_skill_md"
+    echo "  Updated skill: $skill_name"
   done
 
   # Shared docs live at skills/docs but are not a "skill directory". Install them as well.
@@ -664,20 +652,8 @@ install_codex_skills() {
     local dst_dir="$skills_dst/$skill_name"
     local dst_skill_md="$dst_dir/SKILL.md"
     mkdir -p "$dst_dir"
-    if [[ -f "$dst_skill_md" ]]; then
-      if grep -qF "managed-by: ccb-installer" "$dst_skill_md" 2>/dev/null; then
-        cp -f "$src_skill_md" "$dst_skill_md"
-        echo "  Updated Codex skill: $skill_name"
-      elif [[ -f "$skill_dir/SKILL.md" ]] && cmp -s "$dst_skill_md" "$skill_dir/SKILL.md" 2>/dev/null; then
-        cp -f "$src_skill_md" "$dst_skill_md"
-        echo "  Updated legacy Codex skill: $skill_name"
-      else
-        echo "  Kept existing Codex skill (custom SKILL.md): $skill_name"
-      fi
-    else
-      cp -f "$src_skill_md" "$dst_skill_md"
-      echo "  Installed Codex skill: $skill_name"
-    fi
+    cp -f "$src_skill_md" "$dst_skill_md"
+    echo "  Updated Codex skill: $skill_name"
   done
   echo "Updated Codex skills directory: $skills_dst"
 }

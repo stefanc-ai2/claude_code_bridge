@@ -39,7 +39,7 @@ backend_env = get_backend_env()
 if backend_env and not os.environ.get("CCB_BACKEND_ENV"):
     os.environ["CCB_BACKEND_ENV"] = backend_env
 
-VERSION = "4.1.0"
+VERSION = "4.1.1"
 GIT_COMMIT = ""
 GIT_DATE = ""
 
@@ -766,20 +766,19 @@ class AILauncher:
 
     def _launch_in_new_tmux_session(self) -> bool:
         """Create a new tmux session and attach to it, re-running ccb inside."""
+        # Avoid auto-attaching in non-interactive contexts (pipes/CI); provide a clear hint instead.
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            print("❌ Not running inside tmux/WezTerm, and this session is non-interactive.", file=sys.stderr)
+            print("💡 Fix: run `tmux` first, then re-run the same `ccb ...` command inside tmux.", file=sys.stderr)
+            print("   (Or launch from WezTerm, or set CCB_TERMINAL=wezterm/tmux explicitly.)", file=sys.stderr)
+            return False
+
         # IMPORTANT: session name must be unique per run. Using only a short prefix of
         # `ai-<epoch>-<pid>` collides frequently (same day) and can incorrectly attach to an old session.
         session_name = f"ccb-{self.session_id}"
-        providers_str = ",".join(self.providers)
-
-        # Preserve CLI flags when re-launching inside tmux; otherwise options like `ccb up ... -a`
-        # get lost when not already inside tmux.
-        ccb_args = [str(self.script_dir / "ccb"), "up"]
-        if self.resume:
-            ccb_args.append("-r")
-        if self.auto:
-            ccb_args.append("-a")
-        ccb_args.append(providers_str)
-        ccb_cmd = " ".join(shlex.quote(a) for a in ccb_args)
+        # Re-run ccb with the original argv to preserve all flags (e.g. --init/--auto/--resume)
+        # and any future CLI options without having to mirror them here.
+        ccb_cmd = shlex.join([str(self.script_dir / "ccb"), *sys.argv[1:]])
 
         # Check if session already exists
         check = subprocess.run(
@@ -890,7 +889,7 @@ class AILauncher:
                 return False
 
         # If not inside tmux, create a new session and attach to it
-        if not os.environ.get("TMUX"):
+        if not (os.environ.get("TMUX") or os.environ.get("TMUX_PANE")):
             return self._launch_in_new_tmux_session()
 
         print(f"🚀 {t('starting_backend', provider=provider.capitalize(), terminal='tmux')}")
