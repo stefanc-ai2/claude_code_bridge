@@ -770,7 +770,16 @@ class AILauncher:
         # `ai-<epoch>-<pid>` collides frequently (same day) and can incorrectly attach to an old session.
         session_name = f"ccb-{self.session_id}"
         providers_str = ",".join(self.providers)
-        ccb_cmd = f"{shlex.quote(str(self.script_dir / 'ccb'))} up {shlex.quote(providers_str)}"
+
+        # Preserve CLI flags when re-launching inside tmux; otherwise options like `ccb up ... -a`
+        # get lost when not already inside tmux.
+        ccb_args = [str(self.script_dir / "ccb"), "up"]
+        if self.resume:
+            ccb_args.append("-r")
+        if self.auto:
+            ccb_args.append("-a")
+        ccb_args.append(providers_str)
+        ccb_cmd = " ".join(shlex.quote(a) for a in ccb_args)
 
         # Check if session already exists
         check = subprocess.run(
