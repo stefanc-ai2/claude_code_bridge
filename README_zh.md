@@ -256,6 +256,8 @@ ccb update 4            # 更新到 v4.x.x 最高版本
 ccb update 4.1          # 更新到 v4.1.x 最高版本
 ccb update 4.1.2        # 更新到指定版本 v4.1.2
 ccb update cca          # 仅更新 CCA (Claude Code Autoflow)
+ccb uninstall           # 卸载 ccb 并清理配置
+ccb reinstall           # 清理后重新安装
 ```
 
 ---
@@ -468,6 +470,10 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
 ## 🗑️ 卸载
 
 ```bash
+ccb uninstall
+ccb reinstall
+
+# 备用方式：
 ./install.sh uninstall
 ```
 

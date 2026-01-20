@@ -274,6 +274,8 @@ ccb update 4            # Update to the highest v4.x.x version
 ccb update 4.1          # Update to the highest v4.1.x version
 ccb update 4.1.2        # Update to specific version v4.1.2
 ccb update cca          # Update CCA (Claude Code Autoflow) only
+ccb uninstall           # Uninstall ccb and clean configs
+ccb reinstall           # Clean then reinstall ccb
 ```
 
 ---
@@ -429,6 +431,10 @@ Once started, collaborate naturally. Claude will detect when to delegate tasks.
 ## 🗑️ Uninstall
 
 ```bash
+ccb uninstall
+ccb reinstall
+
+# Fallback:
 ./install.sh uninstall
 ```
 
