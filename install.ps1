@@ -513,24 +513,28 @@ Fast path (minimize latency):
 - If the user message is only the prefix (no question): ask a 1-line clarification for what to send.
 
 Actions:
-- Ask a question (default) -> ``Bash(@"`n<question>`n"@ | <cask|gask|oask>, run_in_background=true)``, tell user "ASSISTANT processing (task: xxx)", then END your turn
-- Check connectivity -> run ``PING_CMD``
-- Use blocking/wait or "show previous reply" commands ONLY if the user explicitly requests them
+- Ask a question (default) -> ``Bash(`$env:CCB_CALLER='claude'; ask <provider> <<'EOF' ... EOF)``, tell user "PROVIDER processing...", then END your turn
+- Check connectivity -> run ``ping <provider>``
+- Use "show previous reply" commands ONLY if the user explicitly requests them
 
 Important restrictions:
 - After starting a background ask, do NOT poll for results; wait for ``bash-notification``
-- Do NOT use ``*-w`` / ``*pend`` / ``*end`` unless the user explicitly requests
+- Do NOT use ``pend`` unless the user explicitly requests
 
-### Command Map
+### Command Map (Unified Commands)
 | Assistant | Prefixes | ASK (background) | PING_CMD | Explicit-request-only |
 |---|---|---|---|---|
-| Codex | ``@codex``, ``codex:``, ``ask codex``, ``let codex``, ``/cask`` | ``@"`n<question>`n"@ | cask`` | ``cping`` | ``cpend`` |
-| Gemini | ``@gemini``, ``gemini:``, ``ask gemini``, ``let gemini``, ``/gask`` | ``@"`n<question>`n"@ | gask`` | ``gping`` | ``gpend`` |
-| OpenCode | ``@opencode``, ``opencode:``, ``ask opencode``, ``let opencode``, ``/oask`` | ``@"`n<question>`n"@ | oask`` | ``oping`` | ``opend`` |
+| Codex | ``@codex``, ``codex:``, ``ask codex``, ``let codex`` | ``CCB_CALLER=claude ask codex <<'EOF' ... EOF`` | ``ping codex`` | ``pend codex`` |
+| Gemini | ``@gemini``, ``gemini:``, ``ask gemini``, ``let gemini`` | ``CCB_CALLER=claude ask gemini <<'EOF' ... EOF`` | ``ping gemini`` | ``pend gemini`` |
+| OpenCode | ``@opencode``, ``opencode:``, ``ask opencode``, ``let opencode`` | ``CCB_CALLER=claude ask opencode <<'EOF' ... EOF`` | ``ping opencode`` | ``pend opencode`` |
+| Droid | ``@droid``, ``droid:``, ``ask droid``, ``let droid`` | ``CCB_CALLER=claude ask droid <<'EOF' ... EOF`` | ``ping droid`` | ``pend droid`` |
 
 Examples:
-- ``codex: review this code`` -> ``Bash(@"`nreview this code`n"@ | cask, run_in_background=true)``, END turn
-- ``is gemini alive?`` -> ``gping``
+- ``codex: review this code`` -> ``Bash(CCB_CALLER=claude ask codex <<'EOF'
+review this code
+EOF
+)``, END turn
+- ``is gemini alive?`` -> ``ping gemini``
 <!-- CCB_CONFIG_END -->
 "@
 

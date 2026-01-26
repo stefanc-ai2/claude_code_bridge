@@ -903,27 +903,28 @@ Fast path (minimize latency):
 - If the user message is only the prefix (no question): ask a 1-line clarification for what to send.
 
 Actions:
-- Ask a question (default) -> `Bash(<cask|gask|oask> <<'EOF' ... EOF, run_in_background=true)`, tell user "`ASSISTANT` processing (task: xxx)", then END your turn
-- Check connectivity -> run `PING_CMD`
-- Use blocking/wait or "show previous reply" commands ONLY if the user explicitly requests them
+- Ask a question (default) -> `Bash(CCB_CALLER=claude ask <provider> <<'EOF' ... EOF)`, tell user "`PROVIDER` processing...", then END your turn
+- Check connectivity -> run `ping <provider>`
+- Use "show previous reply" commands ONLY if the user explicitly requests them
 
 Important restrictions:
 - After starting a background ask, do NOT poll for results; wait for `bash-notification`
-  - Do NOT use `*pend` / `*end` unless the user explicitly requests
+  - Do NOT use `pend` unless the user explicitly requests
 
-  ### Command Map
+  ### Command Map (Unified Commands)
   | Assistant | Prefixes | ASK (background) | PING_CMD | Explicit-request-only |
   |---|---|---|---|---|
-  | Codex | `@codex`, `codex:`, `ask codex`, `let codex`, `/cask` | `cask <<'EOF' ... EOF` | `cping` | `cpend` |
-  | Gemini | `@gemini`, `gemini:`, `ask gemini`, `let gemini`, `/gask` | `gask <<'EOF' ... EOF` | `gping` | `gpend` |
-  | OpenCode | `@opencode`, `opencode:`, `ask opencode`, `let opencode`, `/oask` | `oask <<'EOF' ... EOF` | `oping` | `opend` |
+  | Codex | `@codex`, `codex:`, `ask codex`, `let codex` | `CCB_CALLER=claude ask codex <<'EOF' ... EOF` | `ping codex` | `pend codex` |
+  | Gemini | `@gemini`, `gemini:`, `ask gemini`, `let gemini` | `CCB_CALLER=claude ask gemini <<'EOF' ... EOF` | `ping gemini` | `pend gemini` |
+  | OpenCode | `@opencode`, `opencode:`, `ask opencode`, `let opencode` | `CCB_CALLER=claude ask opencode <<'EOF' ... EOF` | `ping opencode` | `pend opencode` |
+  | Droid | `@droid`, `droid:`, `ask droid`, `let droid` | `CCB_CALLER=claude ask droid <<'EOF' ... EOF` | `ping droid` | `pend droid` |
 
 Examples:
-- `codex: review this code` -> `Bash(cask <<'EOF'
+- `codex: review this code` -> `Bash(CCB_CALLER=claude ask codex <<'EOF'
 review this code
 EOF
-, run_in_background=true)`, END turn
-- `is gemini alive?` -> `gping`
+)`, END turn
+- `is gemini alive?` -> `ping gemini`
 <!-- CCB_CONFIG_END -->
 AI_RULES
   local ccb_content
