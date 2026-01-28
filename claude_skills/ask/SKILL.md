@@ -1,33 +1,38 @@
 ---
 name: ask
-description: Send via ask, end turn immediately; use when user explicitly delegates to any AI provider (gemini/codex/opencode/droid); NOT for questions about the providers themselves.
+description: Async via ask, end turn immediately; use when user explicitly delegates to any AI provider (gemini/codex/opencode/droid); NOT for questions about the providers themselves.
 metadata:
   short-description: Ask AI provider asynchronously
 ---
 
-# Ask AI Provider
+# Ask AI Provider (Async)
 
-Send the user's request to the specified AI provider via ask.
+Send the user's request to specified AI provider asynchronously.
 
 ## Usage
 
-The first argument must be the provider name. The message MUST be provided via stdin
-(heredoc or pipe), not as CLI arguments, to avoid shell globbing issues:
+The first argument must be the provider name, followed by the message:
 - `gemini` - Send to Gemini
 - `codex` - Send to Codex
 - `opencode` - Send to OpenCode
 - `droid` - Send to Droid
-Optional flags after the provider:
-- `--foreground` / `--background`
-- Env overrides: `CCB_ASK_FOREGROUND=1` / `CCB_ASK_BACKGROUND=1`
 
 ## Execution (MANDATORY)
 
-```bash
-CCB_CALLER=claude ask $PROVIDER <<'EOF'
+**Windows Native (PowerShell/WezTerm) - USE THIS:**
+```
+Bash(ask $PROVIDER "$MESSAGE")
+```
+
+**Linux/macOS/WSL only:**
+```
+Bash(nohup sh -c 'CCB_CALLER=claude ask $PROVIDER <<EOF
 $MESSAGE
 EOF
+' > /dev/null 2>&1 &)
 ```
+
+IMPORTANT: On Windows, just use `ask` directly. Do NOT use nohup/sh - they don't exist on native Windows!
 
 ## Rules
 
@@ -37,11 +42,11 @@ EOF
 
 ## Examples
 
-- `/ask gemini What is 12+12?` (send via heredoc)
-- `CCB_CALLER=claude ask gemini <<'EOF'`
-  `What is 12+12?`
-  `EOF`
+- `/ask gemini What is 12+12?`
+- `/ask codex Refactor this code`
+- `/ask opencode Analyze this bug`
+- `/ask droid Execute this task`
 
 ## Notes
 
-- If it fails, check backend health with `ping <provider>` (e.g., `ping gemini`).
+- If it fails, check backend health with the corresponding ping command (`ping <provider>` (e.g., `ping gemini`)).

@@ -8,22 +8,49 @@ PROVIDERS="codex:cask gemini:gask opencode:oask claude:lask droid:dask"
 CWD="${1:-$(pwd)}"
 FORMAT="${2:---json}"
 
-# Single pgrep to get all online daemons
-ONLINE=$(pgrep -af "bin/[cglod]askd$" 2>/dev/null | grep -oE "[cglod]askd" | sort -u || true)
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-MOUNTED=""
-for pair in $PROVIDERS; do
-  provider="${pair%%:*}"
-  daemon="${pair##*:}"
-
-  # Check session file exists
-  if [[ -f "$CWD/.ccb_config/.${provider}-session" ]] || [[ -f "$CWD/.${provider}-session" ]]; then
-    # Check daemon is online
-    if echo "$ONLINE" | grep -q "^${daemon}d$"; then
-      MOUNTED="$MOUNTED $provider"
-    fi
+# Normalize CWD for Windows (convert /e/... to E:/...)
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+  # Convert msys path /e/foo to E:/foo
+  if [[ "$CWD" =~ ^/([a-zA-Z])/ ]]; then
+    CWD="${BASH_REMATCH[1]^}:${CWD:2}"
   fi
-done
+fi
+
+# Detect OS and get online daemons accordingly
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "${WINDIR:-}" ]]; then
+  # Windows: use ping command to check each provider directly
+  MOUNTED=""
+  for pair in $PROVIDERS; do
+    provider="${pair%%:*}"
+    # Check session file exists first
+    if [[ -f "$CWD/.ccb_config/.${provider}-session" ]] || [[ -f "$CWD/.${provider}-session" ]]; then
+      # Try the ping command to check if daemon is responsive
+      if "$SCRIPT_DIR/ping" "$provider" >/dev/null 2>&1; then
+        MOUNTED="$MOUNTED $provider"
+      fi
+    fi
+  done
+else
+  # Linux/macOS: use pgrep
+  ONLINE=$(pgrep -af "bin/[cglod]askd$" 2>/dev/null | grep -oE "[cglod]askd" | sort -u || true)
+
+  MOUNTED=""
+  for pair in $PROVIDERS; do
+    provider="${pair%%:*}"
+    daemon="${pair##*:}"
+
+    # Check session file exists
+    if [[ -f "$CWD/.ccb_config/.${provider}-session" ]] || [[ -f "$CWD/.${provider}-session" ]]; then
+      # Check daemon is online
+      if echo "$ONLINE" | grep -q "${daemon}d"; then
+        MOUNTED="$MOUNTED $provider"
+      fi
+    fi
+  done
+fi
 
 MOUNTED=$(echo $MOUNTED | xargs)  # trim
 

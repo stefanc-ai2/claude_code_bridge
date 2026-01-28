@@ -65,7 +65,11 @@ def main():
         return 1
 
     # Pass remaining arguments to the original command
-    cmd = [str(pend_path)] + sys.argv[2:]
+    # On Windows, need to use Python interpreter explicitly
+    if sys.platform == "win32":
+        cmd = [sys.executable, str(pend_path)] + sys.argv[2:]
+    else:
+        cmd = [str(pend_path)] + sys.argv[2:]
 
     try:
         result = subprocess.run(cmd)

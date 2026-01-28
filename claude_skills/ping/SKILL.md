@@ -20,9 +20,17 @@ The first argument must be the provider name:
 
 ## Execution (MANDATORY)
 
-```bash
-ping $ARGUMENTS
+**Windows Native - use ccb-ping to avoid conflict with system ping:**
 ```
+Bash(ccb-ping $PROVIDER)
+```
+
+**Linux/macOS/WSL:**
+```
+Bash(ping $PROVIDER)
+```
+
+IMPORTANT: On Windows, the system `PING.EXE` takes priority. Use `ccb-ping` wrapper instead.
 
 ## Examples
 
