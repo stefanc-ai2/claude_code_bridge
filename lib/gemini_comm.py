@@ -527,6 +527,7 @@ class GeminiCommunicator:
         self.runtime_dir = Path(self.session_info["runtime_dir"])
         self.terminal = self.session_info.get("terminal", "tmux")
         self.pane_id = get_pane_id_from_session(self.session_info)
+        self.pane_title_marker = self.session_info.get("pane_title_marker") or ""
         self.timeout = int(os.environ.get("GEMINI_SYNC_TIMEOUT", "60"))
         self.marker_prefix = "ask"
         self.project_session_file = self.session_info.get("_session_file")
@@ -559,6 +560,13 @@ class GeminiCommunicator:
         # Lazy initialization: defer log reader and health check
         self._log_reader: Optional[GeminiLogReader] = None
         self._log_reader_primed = False
+
+        if self.terminal == "wezterm" and self.backend and self.pane_title_marker:
+            resolver = getattr(self.backend, "find_pane_by_title_marker", None)
+            if callable(resolver):
+                resolved = resolver(self.pane_title_marker)
+                if resolved:
+                    self.pane_id = resolved
 
         if not lazy_init:
             self._ensure_log_reader()
@@ -669,8 +677,21 @@ class GeminiCommunicator:
                 return False, "Runtime directory not found"
             if not self.pane_id:
                 return False, "Session ID not found"
-            if probe_terminal and self.backend and not self.backend.is_alive(self.pane_id):
-                return False, f"{self.terminal} session {self.pane_id} not found"
+            if probe_terminal and self.backend:
+                pane_alive = self.backend.is_alive(self.pane_id)
+                if self.terminal == "wezterm" and self.pane_title_marker and not pane_alive:
+                    resolver = getattr(self.backend, "find_pane_by_title_marker", None)
+                    if callable(resolver):
+                        resolved = resolver(self.pane_title_marker)
+                        if resolved:
+                            self.pane_id = resolved
+                            pane_alive = self.backend.is_alive(self.pane_id)
+                if not pane_alive:
+                    if self.terminal == "wezterm":
+                        err = getattr(self.backend, "last_list_error", None)
+                        if err:
+                            return False, f"WezTerm CLI error: {err}"
+                    return False, f"{self.terminal} session {self.pane_id} not found"
             return True, "Session OK"
         except Exception as exc:
             return False, f"Check failed: {exc}"

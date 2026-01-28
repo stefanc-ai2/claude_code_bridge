@@ -218,8 +218,13 @@ def _build_keep_open_cmd(provider: str, start_cmd: str) -> str:
 
 def _build_pane_title_cmd(marker: str) -> str:
     if get_shell_type() == "powershell":
-        safe = marker.replace("'", "''")
-        return f"$Host.UI.RawUI.WindowTitle = '{safe}'; "
+        safe_sq = marker.replace("'", "''")
+        safe_dq = marker.replace('"', '`"')
+        return (
+            "$esc=[char]27; "
+            f"[Console]::Write(\"$esc]0;{safe_dq}`a\"); "
+            f"$Host.UI.RawUI.WindowTitle = '{safe_sq}'; "
+        )
     return f"printf '\\033]0;{marker}\\007'; "
 
 def _build_export_path_cmd(bin_dir: Path) -> str:
@@ -2107,7 +2112,13 @@ class AILauncher:
             if not output_fifo.exists():
                 os.mkfifo(output_fifo, 0o644)
 
-        start_cmd = self._build_env_prefix(self._managed_env_overrides()) + _build_export_path_cmd(self.script_dir / "bin") + self._build_codex_start_cmd()
+        title_cmd = _build_pane_title_cmd(pane_title_marker) if self.terminal_type == "wezterm" else ""
+        start_cmd = (
+            title_cmd
+            + self._build_env_prefix(self._managed_env_overrides())
+            + _build_export_path_cmd(self.script_dir / "bin")
+            + self._build_codex_start_cmd()
+        )
 
         self._write_codex_session(
             runtime,
@@ -2208,7 +2219,13 @@ class AILauncher:
             except Exception:
                 pass
 
-        start_cmd = self._build_env_prefix(self._managed_env_overrides()) + _build_export_path_cmd(self.script_dir / "bin") + self._build_gemini_start_cmd()
+        title_cmd = _build_pane_title_cmd(pane_title_marker) if self.terminal_type == "wezterm" else ""
+        start_cmd = (
+            title_cmd
+            + self._build_env_prefix(self._managed_env_overrides())
+            + _build_export_path_cmd(self.script_dir / "bin")
+            + self._build_gemini_start_cmd()
+        )
         self._write_gemini_session(
             runtime,
             None,
@@ -2237,7 +2254,13 @@ class AILauncher:
             except Exception:
                 pass
 
-        start_cmd = self._build_env_prefix(self._managed_env_overrides()) + _build_export_path_cmd(self.script_dir / "bin") + self._build_opencode_start_cmd()
+        title_cmd = _build_pane_title_cmd(pane_title_marker) if self.terminal_type == "wezterm" else ""
+        start_cmd = (
+            title_cmd
+            + self._build_env_prefix(self._managed_env_overrides())
+            + _build_export_path_cmd(self.script_dir / "bin")
+            + self._build_opencode_start_cmd()
+        )
         self._write_opencode_session(
             runtime,
             None,
@@ -2266,7 +2289,13 @@ class AILauncher:
             except Exception:
                 pass
 
-        start_cmd = self._build_env_prefix(self._managed_env_overrides()) + _build_export_path_cmd(self.script_dir / "bin") + self._build_droid_start_cmd()
+        title_cmd = _build_pane_title_cmd(pane_title_marker) if self.terminal_type == "wezterm" else ""
+        start_cmd = (
+            title_cmd
+            + self._build_env_prefix(self._managed_env_overrides())
+            + _build_export_path_cmd(self.script_dir / "bin")
+            + self._build_droid_start_cmd()
+        )
         self._write_droid_session(
             runtime,
             None,

@@ -23,14 +23,6 @@ The first argument must be the provider name, followed by the message:
 Start-Process -NoNewWindow -FilePath "ask" -ArgumentList "$PROVIDER" -RedirectStandardInput (New-TemporaryFile | ForEach-Object { $MESSAGE | Set-Content $_; $_.FullName })
 ```
 
-Or via Bash (if available):
-```
-Bash(nohup sh -c 'CCB_CALLER=claude ask $PROVIDER <<EOF
-$MESSAGE
-EOF
-' > /dev/null 2>&1 &)
-```
-
 ## Rules
 
 - After running the command, say "[Provider] processing..." and immediately end your turn.

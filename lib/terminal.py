@@ -635,6 +635,12 @@ class WeztermBackend(TerminalBackend):
     _wezterm_bin: Optional[str] = None
     CCB_TITLE_MARKER = "CCB"
 
+    def __init__(self) -> None:
+        self._last_list_error: Optional[str] = None
+
+    def last_list_error(self) -> Optional[str]:
+        return self._last_list_error
+
     @classmethod
     def _cli_base_args(cls) -> list[str]:
         args = [cls._bin(), "cli"]
@@ -773,7 +779,69 @@ class WeztermBackend(TerminalBackend):
 
         self._send_enter(pane_id)
 
-    def _list_panes(self) -> list[dict]:
+    @staticmethod
+    def _parse_list_output(text: str) -> list[dict]:
+        lines = [line.rstrip() for line in (text or "").splitlines() if line.strip()]
+        if not lines:
+            return []
+
+        header = lines[0]
+        header_upper = header.upper()
+
+        def parse_with_header() -> list[dict]:
+            cols = [(m.start(), m.group(0).upper()) for m in re.finditer(r"\S+", header)]
+            if not cols:
+                return []
+            col_defs: list[tuple[str, int, Optional[int]]] = []
+            for idx, (start, name) in enumerate(cols):
+                end = cols[idx + 1][0] if idx + 1 < len(cols) else None
+                col_defs.append((name, start, end))
+
+            def find_col(*names: str) -> Optional[tuple[int, Optional[int]]]:
+                for col_name, start, end in col_defs:
+                    if col_name in names:
+                        return start, end
+                return None
+
+            pane_slice = find_col("PANEID", "PANE_ID", "PANE")
+            title_slice = find_col("TITLE")
+            entries: list[dict] = []
+            for line in lines[1:]:
+                if not line.strip():
+                    continue
+                entry: dict = {}
+                if pane_slice:
+                    start, end = pane_slice
+                    raw = line[start:] if end is None else line[start:end]
+                    pane_id = raw.strip()
+                    if pane_id:
+                        entry["pane_id"] = pane_id
+                if title_slice:
+                    start, end = title_slice
+                    raw = line[start:] if end is None else line[start:end]
+                    title = raw.strip()
+                    if title:
+                        entry["title"] = title
+                if entry.get("pane_id"):
+                    entries.append(entry)
+            return entries
+
+        if "PANE" in header_upper:
+            entries = parse_with_header()
+            if entries:
+                return entries
+
+        # Fallback: parse rows without headers, best-effort pane id detection
+        entries: list[dict] = []
+        for line in lines:
+            tokens = line.split()
+            pane_token = next((tok for tok in tokens if tok.isdigit()), None)
+            if pane_token:
+                entries.append({"pane_id": pane_token})
+        return entries
+
+    def _list_panes(self) -> Optional[list[dict]]:
+        self._last_list_error = None
         try:
             result = _run(
                 [*self._cli_base_args(), "list", "--format", "json"],
@@ -781,13 +849,53 @@ class WeztermBackend(TerminalBackend):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                timeout=1.0,
             )
-            if result.returncode != 0:
+            if result.returncode == 0:
+                try:
+                    panes = json.loads(result.stdout)
+                except Exception as exc:
+                    self._last_list_error = f"wezterm cli list json parse failed: {exc}"
+                else:
+                    if isinstance(panes, list):
+                        return panes
+                    self._last_list_error = "wezterm cli list json output is not a list"
+            else:
+                err = (result.stderr or result.stdout or "").strip()
+                if err:
+                    self._last_list_error = f"wezterm cli list failed ({result.returncode}): {err}"
+                else:
+                    self._last_list_error = f"wezterm cli list failed ({result.returncode})"
+        except Exception as exc:
+            self._last_list_error = f"wezterm cli list failed: {exc}"
+
+        # Fallback: older WezTerm versions may not support --format json.
+        try:
+            fallback = _run(
+                [*self._cli_base_args(), "list"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=1.0,
+            )
+            if fallback.returncode == 0:
+                panes = self._parse_list_output(fallback.stdout)
+                if panes:
+                    self._last_list_error = None
+                    return panes
+                if (fallback.stdout or "").strip():
+                    self._last_list_error = "wezterm cli list returned unparseable output"
+                    return None
                 return []
-            panes = json.loads(result.stdout)
-            return panes if isinstance(panes, list) else []
-        except Exception:
-            return []
+            err = (fallback.stderr or fallback.stdout or "").strip()
+            if err:
+                self._last_list_error = f"wezterm cli list failed ({fallback.returncode}): {err}"
+            else:
+                self._last_list_error = f"wezterm cli list failed ({fallback.returncode})"
+        except Exception as exc:
+            self._last_list_error = f"wezterm cli list failed: {exc}"
+        return None
 
     def _pane_id_by_title_marker(self, panes: list[dict], marker: str) -> Optional[str]:
         if not marker:
@@ -802,10 +910,14 @@ class WeztermBackend(TerminalBackend):
 
     def find_pane_by_title_marker(self, marker: str) -> Optional[str]:
         panes = self._list_panes()
+        if panes is None:
+            return None
         return self._pane_id_by_title_marker(panes, marker)
 
     def is_alive(self, pane_id: str) -> bool:
         panes = self._list_panes()
+        if panes is None:
+            return False
         if not panes:
             return False
         if any(str(p.get("pane_id")) == str(pane_id) for p in panes):
@@ -835,12 +947,24 @@ class WeztermBackend(TerminalBackend):
 
     def send_key(self, pane_id: str, key: str) -> bool:
         """Send a special key (e.g., 'Escape', 'Enter') to pane."""
+        key = (key or "").strip()
+        if not pane_id or not key:
+            return False
         try:
             if self._send_key_cli(pane_id, key):
                 return True
+            lower = key.lower()
+            if lower in {"enter", "return"}:
+                payload = b"\r"
+            elif lower in {"escape", "esc"}:
+                payload = b"\x1b"
+            elif len(key) == 1:
+                payload = key.encode("utf-8")
+            else:
+                return False
             result = _run(
                 [*self._cli_base_args(), "send-text", "--pane-id", pane_id, "--no-paste"],
-                input=key.encode("utf-8"),
+                input=payload,
                 capture_output=True,
                 timeout=2.0,
             )

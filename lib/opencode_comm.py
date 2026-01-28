@@ -1025,6 +1025,7 @@ class OpenCodeCommunicator:
         self.runtime_dir = Path(self.session_info["runtime_dir"])
         self.terminal = self.session_info.get("terminal", os.environ.get("OPENCODE_TERMINAL", "tmux"))
         self.pane_id = get_pane_id_from_session(self.session_info) or ""
+        self.pane_title_marker = self.session_info.get("pane_title_marker") or ""
         self.backend = get_backend_for_session(self.session_info)
 
         self.timeout = int(os.environ.get("OPENCODE_SYNC_TIMEOUT", "30"))
@@ -1037,6 +1038,13 @@ class OpenCodeCommunicator:
             project_id="global",
             session_id_filter=(str(self.session_info.get("opencode_session_id") or "").strip() or None),
         )
+
+        if self.terminal == "wezterm" and self.backend and self.pane_title_marker:
+            resolver = getattr(self.backend, "find_pane_by_title_marker", None)
+            if callable(resolver):
+                resolved = resolver(self.pane_title_marker)
+                if resolved:
+                    self.pane_id = resolved
 
         # Best-effort: publish to registry for project_id routing.
         try:
@@ -1101,6 +1109,8 @@ class OpenCodeCommunicator:
                     if isinstance(file_data, dict):
                         result["opencode_session_path"] = file_data.get("opencode_session_path")
                         result["_session_file"] = str(session_file)
+                        if not result.get("pane_title_marker"):
+                            result["pane_title_marker"] = file_data.get("pane_title_marker", "")
                 except Exception:
                     pass
             return result
@@ -1144,8 +1154,21 @@ class OpenCodeCommunicator:
                 return False, "Runtime directory not found"
             if not self.pane_id:
                 return False, "Session pane not found"
-            if probe_terminal and self.backend and not self.backend.is_alive(self.pane_id):
-                return False, f"{self.terminal} session {self.pane_id} not found"
+            if probe_terminal and self.backend:
+                pane_alive = self.backend.is_alive(self.pane_id)
+                if self.terminal == "wezterm" and self.pane_title_marker and not pane_alive:
+                    resolver = getattr(self.backend, "find_pane_by_title_marker", None)
+                    if callable(resolver):
+                        resolved = resolver(self.pane_title_marker)
+                        if resolved:
+                            self.pane_id = resolved
+                            pane_alive = self.backend.is_alive(self.pane_id)
+                if not pane_alive:
+                    if self.terminal == "wezterm":
+                        err = getattr(self.backend, "last_list_error", None)
+                        if err:
+                            return False, f"WezTerm CLI error: {err}"
+                    return False, f"{self.terminal} session {self.pane_id} not found"
 
             # Storage health check (reply reader)
             if not OPENCODE_STORAGE_ROOT.exists():
