@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Code Bridge (ccb) v5.1.1
+# Claude Code Bridge (ccb) v5.1.2
 
 **New Multi-Model Collaboration Tool via Split-Pane Terminal**
 **Claude & Codex & Gemini & OpenCode & Droid**
@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-5.1.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-5.1.2-orange.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml/badge.svg)](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml)
@@ -50,6 +50,19 @@
 <h2 align="center">🚀 What's New</h2>
 
 <details open>
+<summary><b>v5.1.2</b> - Daemon & Hooks Reliability</summary>
+
+**🔧 Fixes & Improvements:**
+- **Claude Completion Hook**: Unified askd now triggers completion hook for Claude
+- **askd Lifecycle**: askd is bound to CCB lifecycle to avoid stale daemons
+- **Mounted Detection**: `ccb-mounted` uses ping-based detection across all platforms
+- **State File Lookup**: `askd_client` falls back to `CCB_RUN_DIR` for daemon state files
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
+
+</details>
+
+<details>
 <summary><b>v5.1.1</b> - Unified Daemon + Bug Fixes</summary>
 
 **🔧 Bug Fixes & Improvements:**

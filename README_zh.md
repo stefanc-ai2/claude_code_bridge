@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Code Bridge (ccb) v5.1.1
+# Claude Code Bridge (ccb) v5.1.2
 
 **基于终端分屏的全新多模型交互协作工具**
 **Claude & Codex & Gemini & OpenCode & Droid**
@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-5.1.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-5.1.2-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -51,6 +51,19 @@
 <h2 align="center">🚀 新版本速览</h2>
 
 <details open>
+<summary><b>v5.1.2</b> - Daemon 与 Hook 稳定性</summary>
+
+**🔧 修复与改进：**
+- **Claude Completion Hook**：统一 askd 为 Claude 触发完成回调
+- **askd 生命周期**：askd 绑定 CCB 生命周期，避免残留守护进程
+- **挂载检测**：`ccb-mounted` 统一使用 ping 检测（兼容统一 askd）
+- **状态文件查找**：`askd_client` 兜底使用 `CCB_RUN_DIR` 查找状态文件
+
+详见 [CHANGELOG.md](CHANGELOG.md)。
+
+</details>
+
+<details>
 <summary><b>v5.1.1</b> - 统一 Daemon + Bug 修复</summary>
 
 **🔧 Bug 修复与改进：**

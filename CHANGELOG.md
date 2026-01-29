@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v5.1.2 (2026-01-29)
+
+### 🔧 Bug Fixes & Improvements
+
+- **Claude Completion Hook**: Unified askd now triggers completion hook for Claude
+- **askd Lifecycle**: askd is bound to CCB lifecycle to avoid stale daemons
+- **Mounted Detection**: `ccb-mounted` now uses ping-based detection across all platforms
+- **State File Lookup**: `askd_client` falls back to `CCB_RUN_DIR` for daemon state files
+
 ## v5.1.1 (2025-01-28)
 
 ### 🔧 Bug Fixes & Improvements

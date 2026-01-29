@@ -14,6 +14,7 @@ from askd.adapters.base import BaseProviderAdapter, ProviderRequest, ProviderRes
 from askd_runtime import log_path, write_log
 from ccb_protocol import REQ_ID_PREFIX
 from claude_comm import ClaudeLogReader
+from completion_hook import notify_completion
 from laskd_protocol import extract_reply_for_req, is_done_text, wrap_claude_prompt
 from laskd_session import compute_session_key, load_project_session
 from providers import LASKD_SPEC
@@ -210,4 +211,13 @@ class ClaudeAdapter(BaseProviderAdapter):
             fallback_scan=fallback_scan,
         )
         _write_log(f"[INFO] done provider=claude req_id={task.req_id} exit={result.exit_code}")
+
+        notify_completion(
+            provider="claude",
+            output_file=req.output_path,
+            reply=final_reply,
+            req_id=task.req_id,
+            done_seen=done_seen,
+            caller=req.caller,
+        )
         return result
