@@ -4,6 +4,9 @@
 
 - **Skills**: Add `/pair` skill for an iterative pair-programming workflow (implement → review → merge; repeat).
   - Includes multi-provider review via `ask`/`pend`.
+- **askd Lifecycle**: When `ccb` auto-starts `askd`, it now starts it as a shared per-project daemon (idle-timeout based) and does not forcibly shut down daemons it doesn't own.
+  - Default idle timeout for auto-started `askd` is `3600s` (configurable via `CCB_ASKD_IDLE_TIMEOUT_S`).
+- **pend (Claude)**: Prefer the newest Claude session log even if `sessions-index.json` is stale/incomplete.
 
 ## v5.1.2 (2026-01-29)
 

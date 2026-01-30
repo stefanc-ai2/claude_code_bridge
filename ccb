@@ -773,16 +773,6 @@ class AILauncher:
             print(f"⚠️ Failed to import {spec.daemon_module}: {exc}")
             return
 
-        def _owned_by_ccb(state: dict | None) -> bool:
-            if not isinstance(state, dict):
-                return False
-            try:
-                parent_pid = int(state.get("parent_pid") or 0)
-            except Exception:
-                parent_pid = 0
-            managed = bool(state.get("managed"))
-            return managed and parent_pid == self.ccb_pid
-
         state_file = None
         raw_state_file = (os.environ.get(spec.state_file_env) or "").strip()
         if raw_state_file:
@@ -793,45 +783,15 @@ class AILauncher:
 
         if ping_daemon(state_file=state_file):
             st = read_state(state_file=state_file) or {} if callable(read_state) else {}
-            if spec.daemon_bin_name == "askd" and not self._askd_checked:
+            if spec.daemon_bin_name == "askd":
                 self._askd_checked = True
-                if not _owned_by_ccb(st):
-                    print("⚠️ askd already running but not managed by this CCB; restarting to bind lifecycle.")
-                    if callable(shutdown_daemon_fn):
-                        try:
-                            shutdown_daemon_fn(timeout_s=1.0, state_file=state_file)
-                        except Exception:
-                            pass
-                    deadline = time.time() + 2.0
-                    while time.time() < deadline:
-                        if not ping_daemon(timeout_s=0.2, state_file=state_file):
-                            break
-                        time.sleep(0.1)
-                    if ping_daemon(timeout_s=0.2, state_file=state_file):
-                        print("⚠️ askd restart skipped: existing daemon still running")
-                        host = st.get("host") if isinstance(st, dict) else None
-                        port = st.get("port") if isinstance(st, dict) else None
-                        if host and port:
-                            print(f"✅ {spec.daemon_bin_name} already running at {host}:{port}")
-                        else:
-                            print(f"✅ {spec.daemon_bin_name} already running")
-                        return
-                else:
-                    host = st.get("host") if isinstance(st, dict) else None
-                    port = st.get("port") if isinstance(st, dict) else None
-                    if host and port:
-                        print(f"✅ {spec.daemon_bin_name} already running at {host}:{port}")
-                    else:
-                        print(f"✅ {spec.daemon_bin_name} already running")
-                    return
+            host = st.get("host") if isinstance(st, dict) else None
+            port = st.get("port") if isinstance(st, dict) else None
+            if host and port:
+                print(f"✅ {spec.daemon_bin_name} already running at {host}:{port}")
             else:
-                host = st.get("host") if isinstance(st, dict) else None
-                port = st.get("port") if isinstance(st, dict) else None
-                if host and port:
-                    print(f"✅ {spec.daemon_bin_name} already running at {host}:{port}")
-                else:
-                    print(f"✅ {spec.daemon_bin_name} already running")
-                return
+                print(f"✅ {spec.daemon_bin_name} already running")
+            return
 
         daemon_script = self.script_dir / "bin" / spec.daemon_bin_name
         if not daemon_script.exists():
@@ -851,7 +811,15 @@ class AILauncher:
 
         try:
             env = os.environ.copy()
-            env["CCB_PARENT_PID"] = str(os.getpid())
+            if spec.daemon_bin_name == "askd":
+                # askd should remain available after `ccb` returns so that `ask` works
+                # from other shells/panes. Use a bounded idle timeout instead of
+                # binding daemon lifetime to this launcher process.
+                env.pop("CCB_PARENT_PID", None)
+                env["CCB_MANAGED"] = "0"
+                env.setdefault("CCB_ASKD_IDLE_TIMEOUT_S", "3600")
+            else:
+                env["CCB_PARENT_PID"] = str(os.getpid())
             subprocess.Popen([sys.executable, str(daemon_script)], env=env, **kwargs)
         except Exception as exc:
             print(f"⚠️ Failed to start {spec.daemon_bin_name}: {exc}")
@@ -2976,7 +2944,16 @@ class AILauncher:
         # Ensure unified askd daemon exits when CCB exits.
         try:
             askd_state = state_file_path("askd.json")
-            shutdown_daemon("ask", 1.0, askd_state)
+            st = read_state(askd_state) or {}
+            if isinstance(st, dict):
+                try:
+                    parent_pid = int(st.get("parent_pid") or 0)
+                except Exception:
+                    parent_pid = 0
+                managed = bool(st.get("managed"))
+                # Only shut down askd if it's bound to this CCB instance.
+                if managed and parent_pid == self.ccb_pid:
+                    shutdown_daemon("ask", 1.0, askd_state)
         except Exception:
             pass
 

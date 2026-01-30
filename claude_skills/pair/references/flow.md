@@ -184,3 +184,5 @@ At the end:
 - Summarize feedback incorporated
 - Note any remaining risks / follow-ups
 - Provide exact test commands run
+
+**Important:** Do NOT commit or push unless the user explicitly asks. Leave git operations to the user by default.
