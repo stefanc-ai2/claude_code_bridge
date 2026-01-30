@@ -533,6 +533,15 @@ Once started, collaborate naturally. Claude will detect when to delegate tasks.
 
 - **/all-plan**: Collaborative multi-AI design with Superpowers brainstorming.
 - **/pair**: Pair-programming loop (implement → multi-provider review → merge; repeat).
+- **/poll**: Broadcast one question to all mounted providers, then synthesize a combined answer.
+
+### Skill Comparison
+
+| Skill | Primary goal | Driver does | Other providers do | Output | Code changes? |
+|---|---|---|---|---|---|
+| `/poll` | Answer a question | Broadcast + synthesize | Answer independently | Synthesized response (consensus + disagreements) | No |
+| `/pair` | Build/fix code | Implement + merge feedback | Review driver’s changes | Working code + summary | Yes |
+| `/all-plan` | Design a plan | Coordinate planning | Contribute plan ideas | Implementation plan | No |
 
 <details>
 <summary><b>/all-plan details & usage</b></summary>
