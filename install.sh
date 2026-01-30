@@ -91,9 +91,6 @@ SCRIPTS_TO_LINK=(
   bin/cask
   bin/cpend
   bin/cping
-  bin/gask
-  bin/gpend
-  bin/gping
   bin/oask
   bin/opend
   bin/oping

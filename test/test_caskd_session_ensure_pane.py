@@ -45,7 +45,7 @@ def test_caskd_ensure_pane_respawns_dead_pane(tmp_path: Path, monkeypatch: pytes
             "runtime_dir": str(tmp_path),
             "work_dir": str(tmp_path),
             "active": True,
-            "codex_start_cmd": "codex resume deadbeef",
+            "codex_start_cmd": "codex",
         }),
         encoding="utf-8",
     )
@@ -92,7 +92,7 @@ def test_caskd_ensure_pane_already_alive(tmp_path: Path, monkeypatch: pytest.Mon
     ok, pane = sess.ensure_pane()
     assert ok is True
     assert pane == "%1"
-    assert backend.respawned == []  # No respawn needed
+    assert backend.respawned == []
 
 
 def test_caskd_ensure_pane_marker_rediscover(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -111,7 +111,7 @@ def test_caskd_ensure_pane_marker_rediscover(tmp_path: Path, monkeypatch: pytest
     )
 
     backend = FakeTmuxBackend()
-    backend.alive = {"%1": False, "%2": True}  # %2 is alive
+    backend.alive = {"%1": False, "%2": True}
     backend.marker_map = {"CCB-codex": "%2"}
     monkeypatch.setattr(caskd_session, "get_backend_for_session", lambda data: backend)
 
@@ -121,7 +121,7 @@ def test_caskd_ensure_pane_marker_rediscover(tmp_path: Path, monkeypatch: pytest
     ok, pane = sess.ensure_pane()
     assert ok is True
     assert pane == "%2"
-    assert backend.respawned == []  # No respawn needed, just rediscovered
+    assert backend.respawned == []
 
     data = json.loads(session_path.read_text(encoding="utf-8"))
     assert data["pane_id"] == "%2"
