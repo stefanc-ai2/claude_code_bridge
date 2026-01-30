@@ -94,9 +94,6 @@ SCRIPTS_TO_LINK=(
   bin/lask
   bin/lpend
   bin/lping
-  bin/dask
-  bin/dpend
-  bin/dping
   bin/ask
   bin/ping
   bin/pend
