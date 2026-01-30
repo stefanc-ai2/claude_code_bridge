@@ -15,6 +15,7 @@ from providers import ProviderClientSpec
 from session_utils import find_project_session_file
 from project_id import compute_ccb_project_id
 from pane_registry import load_registry_by_project_id
+from askd_rpc import CCBTimeoutError, _recv_with_deadline
 
 
 def resolve_work_dir(
@@ -218,20 +219,20 @@ def try_daemon_request(
         caller = os.environ.get("CCB_CALLER", "").strip()
         if caller:
             payload["caller"] = caller
-        connect_timeout = min(1.0, max(0.1, float(timeout)))
+
+        # Deadline-based timeout: connect timeout capped at 2s, overall deadline for recv
+        # For negative timeout (unlimited), use sane connect timeout and large deadline
+        if float(timeout) < 0:
+            connect_timeout = 2.0
+            deadline = time.time() + 86400.0  # 24 hours max for "unlimited"
+        else:
+            connect_timeout = min(2.0, max(0.1, float(timeout)))
+            deadline = time.time() + float(timeout)
+
         with socket.create_connection((host, port), timeout=connect_timeout) as sock:
-            sock.settimeout(0.5)
             sock.sendall((json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"))
-            buf = b""
-            deadline = None if float(timeout) < 0 else (time.time() + float(timeout) + 5.0)
-            while b"\n" not in buf and (deadline is None or time.time() < deadline):
-                try:
-                    chunk = sock.recv(65536)
-                except socket.timeout:
-                    continue
-                if not chunk:
-                    break
-                buf += chunk
+            # Use shared helper with larger bufsize for request responses
+            buf = _recv_with_deadline(sock, deadline, bufsize=65536)
             if b"\n" not in buf:
                 return None
             line = buf.split(b"\n", 1)[0].decode("utf-8", errors="replace")
@@ -241,6 +242,8 @@ def try_daemon_request(
             reply = str(resp.get("reply") or "")
             exit_code = int(resp.get("exit_code", 1))
             return reply, exit_code
+    except CCBTimeoutError:
+        return None
     except Exception:
         return None
 
