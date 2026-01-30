@@ -22,11 +22,13 @@ Examples:
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
+import time
 
 script_dir = Path(__file__).resolve().parent
 lib_dir = script_dir.parent / "lib"
@@ -56,6 +58,88 @@ def _use_unified_daemon() -> bool:
     return True  # Default to unified daemon
 
 
+def _askd_autostart_enabled() -> bool:
+    """
+    Whether `ask` should auto-start `askd` when using the unified daemon.
+
+    Default: enabled (CCB_ASKD_AUTOSTART not set, or truthy).
+    """
+    val = (os.environ.get("CCB_ASKD_AUTOSTART") or "").strip().lower()
+    if not val:
+        return True
+    return val not in ("0", "false", "no", "off")
+
+
+def _askd_cmd() -> list[str] | None:
+    askd_path = script_dir / "askd"
+    if askd_path.exists():
+        if sys.platform == "win32":
+            return [sys.executable, str(askd_path)]
+        return [str(askd_path)]
+    return None
+
+
+def _ensure_askd_running(timeout_s: float = 1.5) -> bool:
+    import askd_rpc
+    from askd_runtime import state_file_path
+
+    state_file = state_file_path("askd.json")
+    if askd_rpc.ping_daemon("ask", 0.2, state_file):
+        return True
+
+    if not _askd_autostart_enabled():
+        return False
+
+    cmd = _askd_cmd()
+    if not cmd:
+        return False
+
+    env = os.environ.copy()
+    env.setdefault("CCB_ASKD_IDLE_TIMEOUT_S", "3600")
+
+    try:
+        if os.name == "nt":
+            DETACHED_PROCESS = 0x00000008
+            CREATE_NO_WINDOW = 0x08000000
+            CREATE_NEW_PROCESS_GROUP = 0x00000200
+            subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                env=env,
+                creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,
+            )
+        else:
+            subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                env=env,
+                start_new_session=True,
+            )
+    except Exception as e:
+        if _env_bool("CCB_DEBUG", False):
+            print(f"[DEBUG] askd autostart failed: {e}", file=sys.stderr)
+        return False
+
+    raw_startup_timeout = (os.environ.get("CCB_ASKD_STARTUP_TIMEOUT_S") or "").strip()
+    if raw_startup_timeout:
+        try:
+            startup_timeout_s = float(raw_startup_timeout)
+        except (TypeError, ValueError):
+            startup_timeout_s = timeout_s
+    else:
+        startup_timeout_s = timeout_s
+    deadline = time.time() + max(0.1, startup_timeout_s)
+    while time.time() < deadline:
+        if askd_rpc.ping_daemon("ask", 0.2, state_file):
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def _send_via_unified_daemon(
     provider: str,
     message: str,
@@ -71,9 +155,14 @@ def _send_via_unified_daemon(
     import askd_rpc
 
     state_file = state_file_path("askd.json")
+    if not _ensure_askd_running():
+        print("[ERROR] Unified askd daemon not running", file=sys.stderr)
+        print("[ERROR] Hint: start it with `askd` or run via `ccb` (managed mode).", file=sys.stderr)
+        return EXIT_ERROR
+
     state = askd_rpc.read_state(state_file)
     if not state:
-        print("[ERROR] Unified askd daemon not running", file=sys.stderr)
+        print("[ERROR] Unified askd daemon state missing/invalid", file=sys.stderr)
         return EXIT_ERROR
 
     host = state.get("connect_host") or state.get("host") or "127.0.0.1"
@@ -280,6 +369,11 @@ def main(argv: list[str]) -> int:
             return EXIT_ERROR
 
     # Default async mode: background task via nohup, using unified askd daemon
+    if _use_unified_daemon() and not _ensure_askd_running():
+        print("[ERROR] Unified askd daemon not running", file=sys.stderr)
+        print("[ERROR] Hint: start it with `askd` or run via `ccb` (managed mode).", file=sys.stderr)
+        return EXIT_ERROR
+
     task_id = make_task_id()
     log_dir = Path(tempfile.gettempdir()) / "ccb-tasks"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -290,6 +384,12 @@ def main(argv: list[str]) -> int:
 
     # Get the path to this script for recursive call with --foreground
     ask_cmd = str(Path(__file__).resolve())
+    ccb_run_dir = (os.environ.get("CCB_RUN_DIR") or "").strip()
+    ccb_run_dir_sh = shlex.quote(ccb_run_dir) if ccb_run_dir else ""
+    ccb_run_dir_ps = ccb_run_dir.replace("'", "''") if ccb_run_dir else ""
+    work_dir = os.getcwd()
+    work_dir_sh = shlex.quote(work_dir)
+    work_dir_ps = work_dir.replace("'", "''")
 
     # Platform-specific background execution
     if os.name == "nt":
@@ -308,7 +408,8 @@ def main(argv: list[str]) -> int:
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $env:CCB_REQ_ID = "{task_id}"
 $env:CCB_CALLER = "{caller}"
-$env:CCB_WORK_DIR = "{os.getcwd()}"
+$env:CCB_WORK_DIR = '{work_dir_ps}'
+{f"$env:CCB_RUN_DIR = '{ccb_run_dir_ps}'" if ccb_run_dir else ''}
 Get-Content -Path "{msg_file}" -Encoding UTF8 | python "{ask_cmd}" {provider} --foreground --timeout {timeout}
 '''
         script_file.write_text(script_content, encoding="utf-8")
@@ -325,7 +426,8 @@ Get-Content -Path "{msg_file}" -Encoding UTF8 | python "{ask_cmd}" {provider} --
         bg_script = f'''
 export CCB_REQ_ID="{task_id}"
 export CCB_CALLER="{caller}"
-export CCB_WORK_DIR="{os.getcwd()}"
+export CCB_WORK_DIR={work_dir_sh}
+{f'export CCB_RUN_DIR={ccb_run_dir_sh}' if ccb_run_dir else ''}
 python3 "{ask_cmd}" {provider} --foreground --timeout {timeout} <<'ASKEOF'
 {message}
 ASKEOF
