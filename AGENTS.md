@@ -7,7 +7,7 @@
 - `bin/`: small CLI tools and wrappers (e.g. `ask`, `ping`, `pend`, `ccb-mounted`).
 - `test/`: `pytest` suite (+ a few `test/system_*.sh` scripts).
 - `assets/`, `docs/`: documentation assets and Markdown docs.
-- `*_skills/`: provider-specific skill bundles installed by `install.sh` / `install.ps1`.
+- `*_skills/`: provider-specific skill bundles installed by `install.sh`.
 
 ## Build, Test, and Development Commands
 

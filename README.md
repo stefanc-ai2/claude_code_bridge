@@ -291,22 +291,6 @@ cd claude_code_bridge
 
 </details>
 
-<details>
-<summary><b>Windows Native</b></summary>
-
-> Use this if your Claude/Codex/Gemini runs natively on Windows.
-
-```powershell
-git clone https://github.com/bfly123/claude_code_bridge.git
-cd claude_code_bridge
-powershell -ExecutionPolicy Bypass -File .\install.ps1 install
-```
-
-- The installer prefers `pwsh.exe` (PowerShell 7+) when available, otherwise `powershell.exe`.
-- If a WezTerm config exists, the installer will try to set `config.default_prog` to PowerShell (adds a `-- CCB_WEZTERM_*` block and will prompt before overriding an existing `default_prog`).
-
-</details>
-
 ### Run
 ```bash
 ccb                    # Start providers from ccb.config (default: all four)

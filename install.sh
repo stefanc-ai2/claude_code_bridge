@@ -276,8 +276,6 @@ confirm_backend_env_wsl() {
   echo "ccb/ask/ping/pend must run in the same environment as codex/gemini."
   echo
   echo "Please confirm: you will install and run codex/gemini in WSL (not Windows native)."
-  echo "If you plan to run codex/gemini in Windows native, exit and run on Windows side:"
-  echo "   powershell -ExecutionPolicy Bypass -File .\\install.ps1 install"
   echo "================================================================"
   echo
   read -r -p "Confirm continue installing in WSL? (y/N): " reply

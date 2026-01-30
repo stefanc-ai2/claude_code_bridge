@@ -274,19 +274,6 @@ cd claude_code_bridge
 
 </details>
 
-<details>
-<summary><b>Windows 原生</b></summary>
-
-> 如果你的 Claude/Codex/Gemini 运行在 Windows 原生环境，请使用此方式。
-
-```powershell
-git clone https://github.com/bfly123/claude_code_bridge.git
-cd claude_code_bridge
-powershell -ExecutionPolicy Bypass -File .\install.ps1 install
-```
-
-</details>
-
 ### 启动
 ```bash
 ccb                    # 按 ccb.config 启动（默认：四个全开）
@@ -407,20 +394,9 @@ cping
 
 ### 4) 原生 Windows 用户指南（WezTerm 承载，工具也在 Windows）
 
-#### 4.1 在原生 Windows 中运行 `install.ps1` 安装
+#### 4.1 原生 Windows 安装（已移除）
 
-在 PowerShell 里执行：
-
-```powershell
-git clone https://github.com/bfly123/claude_code_bridge.git
-cd claude_code_bridge
-powershell -ExecutionPolicy Bypass -File .\install.ps1 install
-```
-
-提示：
-- 安装脚本会明确提醒“`ccb/cask/cping/cpend` 必须与 `codex/gemini` 在同一环境运行”，请确认你打算在原生 Windows 运行 `codex/gemini`。
-- 安装脚本优先使用 `pwsh.exe`（PowerShell 7+）；如果没有则使用 `powershell.exe`。
-- 如果检测到 WezTerm 配置文件，安装脚本会尝试设置 `config.default_prog` 为 PowerShell（会插入 `-- CCB_WEZTERM_*` 区块；若已有 `default_prog` 会先询问是否覆盖）。
+该仓库已移除原生 Windows 安装脚本（`install.ps1` / `install.cmd`）。
 
 #### 4.2 安装后如何测试
 
