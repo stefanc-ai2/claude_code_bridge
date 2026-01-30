@@ -3,14 +3,14 @@
 ccb-mounted - Check which CCB providers are mounted.
 
 A provider is "mounted" if:
-1. Session file exists (.ccb_config/.{provider}-session or .{provider}-session)
+1. Session file exists (.ccb_config/.{provider}-session or .{provider}-session) and is active
 2. Daemon is responsive (via RPC ping) - OR socket access is blocked (sandbox mode)
 
 Supports both unified askd daemon and legacy per-provider daemons.
 Falls back to session-file-only checks in sandboxed environments.
 
 Usage:
-    ccb-mounted [CWD] [--json|--simple]
+    ccb-mounted [CWD] [--json|--simple] [--include-inactive]
 """
 
 import sys
@@ -26,13 +26,34 @@ sys.path.insert(0, str(lib_dir))
 PROVIDERS = ["codex", "gemini", "opencode", "claude", "droid"]
 
 
-def find_session_file(cwd: Path, provider: str) -> bool:
-    """Check if session file exists for provider."""
-    candidates = [
+def find_session_file_path(cwd: Path, provider: str) -> Path | None:
+    """Return the provider session file path if present."""
+    candidates = (
         cwd / ".ccb_config" / f".{provider}-session",
         cwd / f".{provider}-session",
-    ]
-    return any(p.exists() for p in candidates)
+    )
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
+
+
+def session_file_is_active(path: Path) -> bool:
+    """
+    Determine whether a provider session file is active.
+
+    Backwards-compatible behavior:
+    - If `active` is explicitly `false`, treat it as inactive.
+    - If `active` is missing/unparseable, treat it as active.
+    """
+    try:
+        raw = path.read_text(encoding="utf-8-sig", errors="replace")
+        data = json.loads(raw)
+        if isinstance(data, dict) and data.get("active") is False:
+            return False
+    except Exception:
+        return True
+    return True
 
 
 def can_connect_localhost() -> bool:
@@ -96,10 +117,14 @@ def main():
     # Parse arguments
     cwd = Path.cwd()
     fmt = "--json"
+    include_inactive = False
 
     for arg in args:
         if arg.startswith("--"):
-            fmt = arg
+            if arg == "--include-inactive":
+                include_inactive = True
+            else:
+                fmt = arg
         else:
             cwd = Path(arg)
 
@@ -112,12 +137,20 @@ def main():
     mounted = []
 
     for provider in PROVIDERS:
-        if find_session_file(cwd, provider):
-            if sandboxed:
-                # In sandbox, trust session files exist = mounted
-                mounted.append(provider)
-            elif unified_askd_running or ping_provider_daemon(provider):
-                mounted.append(provider)
+        session_file = find_session_file_path(cwd, provider)
+        if not session_file:
+            continue
+        if (not include_inactive) and (not session_file_is_active(session_file)):
+            continue
+
+        # Session exists (and is active unless include_inactive is set).
+        if sandboxed:
+            # In sandbox, trust session + active flag only.
+            mounted.append(provider)
+            continue
+
+        if unified_askd_running or ping_provider_daemon(provider):
+            mounted.append(provider)
 
     if fmt == "--simple":
         print(" ".join(mounted))
