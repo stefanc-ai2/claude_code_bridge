@@ -171,6 +171,11 @@ class ClaudeAdapter(BaseProviderAdapter):
                     log_reader = ClaudeLogReader(work_dir=Path(session.work_dir), use_sessions_index=False)
                     log_hint = log_reader.current_session_path()
                     state = _tail_state_for_log(log_hint, tail_bytes=tail_bytes)
+                    if log_hint:
+                        try:
+                            session.update_claude_binding(session_path=log_hint, session_id=log_hint.stem)
+                        except Exception:
+                            pass
                     fallback_scan = True
                     rebounded = True
                 continue
@@ -198,6 +203,14 @@ class ClaudeAdapter(BaseProviderAdapter):
 
         combined = "\n".join(chunks)
         final_reply = extract_reply_for_req(combined, task.req_id)
+        # Persist the resolved log binding so `pend claude` reads from the same session
+        # the daemon used for this request.
+        try:
+            used_path = state.get("session_path")
+            if isinstance(used_path, Path) and used_path.exists():
+                session.update_claude_binding(session_path=used_path, session_id=used_path.stem)
+        except Exception:
+            pass
 
         result = ProviderResult(
             exit_code=0 if done_seen else 2,

@@ -109,6 +109,28 @@ def _parse_n(argv: list[str]) -> int:
     return max(1, n)
 
 
+def _mtime_safe(path: Path | None) -> float:
+    if not path:
+        return -1.0
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return -1.0
+
+
+def _pick_newest_session_path(registry_path: Path | None, session_path: Path | None) -> Path | None:
+    """
+    Pick the best session log path between registry and .claude-session.
+
+    Both sources can be stale. Prefer whichever existing file is newest on disk.
+    """
+    candidates = [p for p in (registry_path, session_path) if p and p.exists()]
+    if not candidates:
+        return registry_path or session_path
+    best = max(candidates, key=_mtime_safe)
+    return best
+
+
 def main(argv: list[str]) -> int:
     try:
         parser = argparse.ArgumentParser(prog="lpend", add_help=True)
@@ -146,9 +168,14 @@ def main(argv: list[str]) -> int:
                         _debug(f"Using registry by ccb_project_id: {registry_log_path}")
 
         session_log_path, _session_id = _load_session_log_path(work_dir, explicit_session_file)
-        log_path = registry_log_path or session_log_path
-        if not registry_log_path and log_path:
-            _debug(f"Using claude_session_path from .claude-session: {log_path}")
+        log_path = _pick_newest_session_path(registry_log_path, session_log_path)
+        if log_path:
+            if registry_log_path and session_log_path and log_path == session_log_path:
+                _debug(f"Preferring .claude-session over registry (newer mtime): {log_path}")
+            elif registry_log_path and session_log_path and log_path == registry_log_path:
+                _debug(f"Preferring registry over .claude-session (newer mtime): {log_path}")
+            elif session_log_path and not registry_log_path:
+                _debug(f"Using claude_session_path from .claude-session: {log_path}")
 
         reader = ClaudeLogReader(work_dir=work_dir)
         if log_path:

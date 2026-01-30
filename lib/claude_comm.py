@@ -11,6 +11,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -168,6 +169,43 @@ def _extract_message(entry: dict, role: str) -> Optional[str]:
     if entry_type != role:
         return None
     return _extract_content_text(entry.get("content"))
+
+
+def _timestamp_ms(entry: dict) -> int:
+    ts = entry.get("timestamp")
+    if isinstance(ts, str) and ts.strip():
+        raw = ts.strip()
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(raw)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return int(dt.timestamp() * 1000)
+        except Exception:
+            return -1
+    return -1
+
+
+def _related_session_logs(session: Path) -> list[Path]:
+    """
+    Return session log paths associated with a given Claude session.
+
+    Claude sometimes writes assistant replies into subagent logs under:
+      <project_dir>/<session_id>/subagents/*.jsonl
+    """
+    out: list[Path] = []
+    if session.exists():
+        out.append(session)
+
+    try:
+        session_dir = session.parent / session.stem
+        subagents_dir = session_dir / "subagents"
+        if subagents_dir.is_dir():
+            out.extend(p for p in subagents_dir.glob("*.jsonl") if p.is_file() and not p.name.startswith("."))
+    except Exception:
+        pass
+    return out
 
 
 class ClaudeLogReader:
@@ -434,19 +472,33 @@ class ClaudeLogReader:
         if not session or not session.exists():
             return None
         last: Optional[str] = None
+        best_key: tuple[int, float, int] | None = None
         try:
-            with session.open("r", encoding="utf-8", errors="replace") as handle:
-                for line in handle:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except Exception:
-                        continue
-                    msg = _extract_message(entry, "assistant")
-                    if msg:
-                        last = msg
+            seq = 0
+            for path in _related_session_logs(session):
+                try:
+                    file_mtime = path.stat().st_mtime
+                except OSError:
+                    file_mtime = -1.0
+                with path.open("r", encoding="utf-8", errors="replace") as handle:
+                    for line in handle:
+                        seq += 1
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            entry = json.loads(line)
+                        except Exception:
+                            continue
+                        msg = _extract_message(entry, "assistant")
+                        if not msg:
+                            continue
+                        ts_ms = _timestamp_ms(entry) if isinstance(entry, dict) else -1
+                        key_ts = ts_ms if ts_ms >= 0 else int(file_mtime * 1000) if file_mtime >= 0 else -1
+                        key = (key_ts, file_mtime, seq)
+                        if best_key is None or key > best_key:
+                            best_key = key
+                            last = msg
         except OSError:
             return None
         return last
