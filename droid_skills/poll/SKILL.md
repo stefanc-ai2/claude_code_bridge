@@ -20,6 +20,8 @@ Arguments (parsed from `$ARGUMENTS`):
 - Optional: `timeout_s=<seconds>` (default: `60`)
 - Optional: `format=consensus|list|table` (default: `consensus`)
 
+Note: The driver always answers alongside respondents and includes that answer in the synthesis.
+
 Examples:
 - `/poll "Should we use Redis or Memcached for sessions?"`
 - `/poll "Is this error handling good UX?" respondents=codex,claude format=list`

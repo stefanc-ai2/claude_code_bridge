@@ -1,7 +1,7 @@
 # Poll (Multi-Provider Q&A) - Flow
 
 This workflow simulates “ask the room”:
-- **You** = Driver (the provider that invoked `/poll`; asks the question, synthesizes)
+- **You** = Driver (the provider that invoked `/poll`; broadcasts first, answers too, then synthesizes)
 - **Other mounted providers** = Respondents (answer independently; no code changes)
 
 ## Inputs
@@ -75,6 +75,15 @@ CCB_CALLER=codex ask <provider> --background <<'EOF'
 EOF
 ```
 
+## Step 2.5: Driver answers (in parallel)
+
+After broadcasting to respondents, answer the question yourself **while they work**.
+
+Use the same structure as the respondent template so your answer can be synthesized consistently:
+- Answer (2-8 sentences)
+- Confidence: high|medium|low
+- Key assumptions / caveats (bullets)
+
 Notes:
 - On Windows native, avoid heredocs; use the `/ask` skill’s Windows instructions.
   - PowerShell example: `$env:CCB_CALLER="codex"; Get-Content $msgFile -Raw | ask <provider> --background`
@@ -107,6 +116,8 @@ Synthesis heuristics:
 - If a majority agrees on the core answer, report as consensus.
 - If split, report vote counts and the main trade-off axes.
 - Prefer high-confidence answers when weighing ambiguous splits.
+- Include the driver answer when determining majority consensus (label it clearly as the driver).
+- Synthesize objectively even if the driver’s answer differs from the consensus.
 
 ## Output
 
@@ -122,6 +133,9 @@ Use the requested format (default: `consensus`).
 **Respondents asked:** <list>
 **Respondents replied:** <list>
 **Respondents timed out/stale:** <list or "none">
+
+### Driver Answer
+<your answer> (confidence: <X>)
 
 ### Consensus
 <synthesized answer (or “No clear consensus”)>
@@ -143,6 +157,9 @@ Use the requested format (default: `consensus`).
 **Question:** <question>
 
 ### Responses
+0) codex (driver) (confidence: <X>)
+   <answer>
+
 1) <provider> (confidence: <X>)
    <answer>
 
@@ -156,6 +173,7 @@ Use the requested format (default: `consensus`).
 
 | Provider | Answer (summary) | Confidence | Key caveat |
 |----------|------------------|------------|------------|
+| codex (driver) | ...          | ...        | ...        |
 | ...      | ...              | ...        | ...        |
 
 **Consensus:** <short>
