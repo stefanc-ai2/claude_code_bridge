@@ -116,8 +116,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full details.
 <summary><b>v5.0.5</b> - Droid delegation tools + setup</summary>
 
 - **Droid**: Adds delegation tools (`ccb_ask_*` plus `cask/gask/lask/oask` aliases).
-- **Setup**: New `ccb droid setup-delegation` command for MCP registration.
-- **Installer**: Auto-registers Droid delegation when `droid` is detected (opt-out via env).
 
 <details>
 <summary><b>Details & usage</b></summary>
@@ -658,7 +656,7 @@ ccb reinstall
 - **Droid Skills**: Full skill set added to `droid_skills/`
 
 ### v5.0.5
-- **Droid**: Add delegation tools (`ccb_ask_*` and `cask/gask/lask/oask`) plus `ccb droid setup-delegation` for MCP install
+- **Droid**: Add delegation tools (`ccb_ask_*` and `cask/gask/lask/oask`)
 
 ### v5.0.4
 - **OpenCode**: 修复 `-r` 恢复在多项目切换后失效的问题

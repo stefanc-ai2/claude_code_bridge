@@ -4,7 +4,7 @@
 
 Simplify Claude Code Bridge from a 5-provider, multi-platform system to a minimal 2-provider (Claude + Codex) solution for **macOS + Linux only** (no Windows, no WSL), with **pure-async `ask`** and **no `pend`**.
 
-Additionally: **remove MCP integration** (`mcp/ccb-delegation` + `ccb droid setup-delegation`) since it’s out of scope.
+Additionally: **remove MCP integration** (delegation server + droid setup commands) since it’s out of scope.
 
 **Estimated reduction:** ~4,500+ lines of code, 20+ files deleted (likely more once docs/tests/installers are pruned)
 
@@ -323,7 +323,7 @@ Delete MCP delegation server and its CLI/install hooks.
 
 **Files to DELETE / MODIFY (minimum):**
 - Delete: `mcp/` (entire directory)
-- Modify: `ccb` - remove `ccb droid setup-delegation` and `test-delegation`
+- Modify: `ccb` - remove droid delegation setup/test commands
 - Modify: `install.sh` - remove droid MCP auto-install blocks
 - Docs/plans: remove or archive `plans/droid-delegation-skills-plan.md` references
 
@@ -484,4 +484,4 @@ codex_skills/ask/       - Add reply instructions
 - Providers: `gemini|opencode|droid` (outside changelog history files)
 - Commands: `pend\\b` (outside this plan and changelog history files)
 - Platforms: `win32|powershell|WSL|wsl\\.localhost` (outside `CHANGELOG_4.0.md`/archived notes)
-- MCP: `ccb-delegation|droid setup-delegation|mcp/ccb-delegation`
+- MCP: legacy droid delegation server + setup command references

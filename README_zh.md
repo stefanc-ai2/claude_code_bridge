@@ -107,8 +107,6 @@
 <summary><b>v5.0.5</b> - Droid 调度工具与安装</summary>
 
 - **Droid**：新增调度工具（`ccb_ask_*` 以及 `cask/gask/lask/oask` 别名）。
-- **安装**：新增 `ccb droid setup-delegation` 用于 MCP 注册。
-- **安装器**：检测到 `droid` 时自动注册（可通过环境变量关闭）。
 
 <details>
 <summary><b>详情与用法</b></summary>
@@ -591,7 +589,7 @@ ccb reinstall
 <summary><b>更新历史</b></summary>
 
 ### v5.0.5
-- **Droid**：新增调度工具（`ccb_ask_*` 与 `cask/gask/lask/oask`），并提供 `ccb droid setup-delegation` 安装命令
+- **Droid**：新增调度工具（`ccb_ask_*` 与 `cask/gask/lask/oask`）
 
 ### v5.0.4
 - **OpenCode**：修复 `-r` 恢复在多项目切换后失效的问题

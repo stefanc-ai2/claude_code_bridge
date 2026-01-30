@@ -206,7 +206,7 @@ function Install-Native {
     New-Item -ItemType Directory -Path $binDir -Force | Out-Null
   }
 
-  $items = @("ccb", "lib", "bin", "commands", "mcp", "droid_skills")
+  $items = @("ccb", "lib", "bin", "commands", "droid_skills")
   foreach ($item in $items) {
     $src = Join-Path $repoRoot $item
     $dst = Join-Path $InstallPrefix $item
@@ -330,7 +330,6 @@ function Install-Native {
   Install-CodexSkills
   Install-ClaudeConfig
   Install-DroidSkills
-  Install-DroidDelegation -PythonCmd $pythonCmd -InstallPrefix $InstallPrefix
   Cleanup-LegacyFiles -InstallPrefix $InstallPrefix
 
   try {
@@ -493,35 +492,6 @@ function Install-DroidSkills {
     Write-Host "  Updated Factory skill: $skillName"
   }
   Write-Host "Updated Factory skills directory: $skillsDst"
-}
-
-function Install-DroidDelegation {
-  param(
-    [string]$PythonCmd,
-    [string]$InstallPrefix
-  )
-
-  if ($env:CCB_DROID_AUTOINSTALL -eq "0") {
-    return
-  }
-  $droidCmd = Get-Command droid -ErrorAction SilentlyContinue
-  if (-not $droidCmd) {
-    return
-  }
-  $serverPath = Join-Path $InstallPrefix "mcp\\ccb-delegation\\server.py"
-  if (-not (Test-Path $serverPath)) {
-    Write-Host "WARN: Droid MCP server not found at $serverPath; skipping"
-    return
-  }
-  if ($env:CCB_DROID_AUTOINSTALL_FORCE -eq "1") {
-    try { & $droidCmd.Source "mcp" "remove" "ccb-delegation" | Out-Null } catch {}
-  }
-  try {
-    & $droidCmd.Source "mcp" "add" "ccb-delegation" "--type" "stdio" $PythonCmd $serverPath | Out-Null
-    Write-Host "OK: Droid MCP delegation registered"
-  } catch {
-    Write-Warning "Droid MCP delegation setup failed: $_"
-  }
 }
 
 function Install-ClaudeConfig {

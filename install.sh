@@ -133,8 +133,6 @@ Optional environment variables:
   CODEX_INSTALL_PREFIX     Install directory (default: ~/.local/share/codex-dual)
   CODEX_BIN_DIR            Executable directory (default: ~/.local/bin)
   CODEX_CLAUDE_COMMAND_DIR Custom Claude commands directory (default: auto-detect)
-  CCB_DROID_AUTOINSTALL    Auto-register Droid MCP tools if droid exists (default: 1)
-  CCB_DROID_AUTOINSTALL_FORCE Re-register Droid MCP tools (default: 0)
 USAGE
 }
 
@@ -777,112 +775,9 @@ install_droid_skills() {
   echo "Updated Factory skills directory: $skills_dst"
 }
 
-install_droid_delegation() {
-  if [[ "${CCB_DROID_AUTOINSTALL:-1}" == "0" ]]; then
-    return
-  fi
-  if ! command -v droid >/dev/null 2>&1; then
-    return
-  fi
-  local py
-  py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
-  if [[ -z "$py" ]]; then
-    echo "WARN: python required for Droid MCP setup; skipping"
-    return
-  fi
-  local server="$INSTALL_PREFIX/mcp/ccb-delegation/server.py"
-  if [[ ! -f "$server" ]]; then
-    echo "WARN: Droid MCP server not found at $server; skipping"
-    return
-  fi
-  if [[ "${CCB_DROID_AUTOINSTALL_FORCE:-0}" == "1" ]]; then
-    droid mcp remove ccb-delegation >/dev/null 2>&1 || true
-  fi
-  if droid mcp add ccb-delegation --type stdio "$py" "$server" >/dev/null 2>&1; then
-    echo "OK: Droid MCP delegation registered"
-  else
-    echo "WARN: Failed to register Droid MCP delegation (already registered or droid config unavailable)"
-  fi
-}
-
 CCB_START_MARKER="<!-- CCB_CONFIG_START -->"
 CCB_END_MARKER="<!-- CCB_CONFIG_END -->"
 LEGACY_RULE_MARKER="## Codex 协作规则"
-
-remove_codex_mcp() {
-  local claude_config="$HOME/.claude.json"
-
-  if [[ ! -f "$claude_config" ]]; then
-    return
-  fi
-
-  if ! pick_python_bin; then
-    echo "WARN: python required to detect MCP configuration"
-    return
-  fi
-
-  local has_codex_mcp
-  has_codex_mcp=$("$PYTHON_BIN" -c "
-import json
-
-try:
-    with open('$claude_config', 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    projects = data.get('projects', {}) if isinstance(data, dict) else {}
-    found = False
-    if isinstance(projects, dict):
-        for _proj, cfg in projects.items():
-            if not isinstance(cfg, dict):
-                continue
-            servers = cfg.get('mcpServers', {})
-            if not isinstance(servers, dict):
-                continue
-            for name in list(servers.keys()):
-                if 'codex' in str(name).lower():
-                    found = True
-                    break
-            if found:
-                break
-    print('yes' if found else 'no')
-except Exception:
-    print('no')
-" 2>/dev/null)
-
-  if [[ "$has_codex_mcp" == "yes" ]]; then
-    echo "WARN: Detected codex-related MCP configuration, removing to avoid conflicts..."
-    "$PYTHON_BIN" -c "
-import json
-import sys
-
-try:
-    with open('$claude_config', 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    removed = []
-    projects = data.get('projects', {}) if isinstance(data, dict) else {}
-    if isinstance(projects, dict):
-        for proj, cfg in projects.items():
-            if not isinstance(cfg, dict):
-                continue
-            servers = cfg.get('mcpServers')
-            if not isinstance(servers, dict):
-                continue
-            for name in list(servers.keys()):
-                if 'codex' in str(name).lower():
-                    del servers[name]
-                    removed.append(f'{proj}: {name}')
-    with open('$claude_config', 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2)
-    if removed:
-        print('Removed the following MCP configurations:')
-        for r in removed:
-            print(f'  - {r}')
-except Exception as e:
-    sys.stderr.write(f'WARN: failed cleaning MCP config: {e}\\n')
-    sys.exit(0)
-"
-    echo "OK: Codex MCP configuration cleaned"
-  fi
-}
 
 install_claude_md_config() {
   local claude_md="$HOME/.claude/CLAUDE.md"
@@ -1275,7 +1170,6 @@ cleanup_legacy_files() {
 
 install_all() {
   install_requirements
-  remove_codex_mcp
   cleanup_legacy_files
   save_wezterm_config
   copy_project
@@ -1285,7 +1179,6 @@ install_all() {
   install_claude_skills
   install_codex_skills
   install_droid_skills
-  install_droid_delegation
   install_claude_md_config
   install_settings_permissions
   install_tmux_config
@@ -1478,17 +1371,6 @@ uninstall_droid_skills() {
   done
 }
 
-uninstall_droid_delegation() {
-  if ! command -v droid >/dev/null 2>&1; then
-    return
-  fi
-
-  echo "Removing Droid MCP delegation..."
-  if droid mcp remove ccb-delegation >/dev/null 2>&1; then
-    echo "  Removed ccb-delegation MCP"
-  fi
-}
-
 uninstall_droid_commands() {
   local cmds_dst="${FACTORY_HOME:-$HOME/.factory}/commands"
   local ccb_cmds="ask.md ping.md pend.md"
@@ -1561,10 +1443,7 @@ uninstall_all() {
   # 9. Remove Droid skills
   uninstall_droid_skills
 
-  # 10. Remove Droid MCP delegation
-  uninstall_droid_delegation
-
-  # 11. Remove Droid commands
+  # 10. Remove Droid commands
   uninstall_droid_commands
 
   echo "OK: Uninstall complete"
