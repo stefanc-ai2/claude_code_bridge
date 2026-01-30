@@ -11,6 +11,7 @@ Usage:
 Environment:
     CCB_COMPLETION_HOOK_ENABLED: Set to "0" to disable (default: "1")
     CCB_COMPLETION_HOOK_TIMEOUT: Timeout in seconds (default: 5)
+    CCB_COMPLETION_HOOK_RESULT_MODE: full|summary|none (default: full, but codex defaults to summary)
 """
 
 from __future__ import annotations
@@ -47,6 +48,52 @@ def env_float(name: str, default: float) -> float:
         return float(val)
     except ValueError:
         return default
+
+
+def _result_mode_for_caller(caller: str) -> str:
+    """
+    Return completion-hook result mode for a given caller.
+
+    Modes:
+    - full: include full provider reply in the pasted notification (legacy behavior)
+    - summary: omit reply content; user should run `pend <provider>` for full text
+    - none: do not send any completion notification
+
+    Defaults:
+    - codex: summary (to avoid duplicate output when using `pend`)
+    - others: full
+    """
+    override = os.environ.get("CCB_COMPLETION_HOOK_RESULT_MODE", "").strip().lower()
+    if override in ("full", "summary", "none"):
+        return override
+    if caller.strip().lower() == "codex":
+        return "summary"
+    return "full"
+
+
+def format_completion_message(*, provider_display: str, provider: str, req_id: str, output_file: str | None, reply: str, caller: str) -> str:
+    mode = _result_mode_for_caller(caller)
+    if mode == "full":
+        result_line = f"Result: {reply}\n"
+    elif mode == "summary":
+        result_line = f"Result: (suppressed; run `pend {provider}`)\n"
+    else:
+        result_line = ""
+
+    if output_file:
+        return (
+            f"CCB_REQ_ID: {req_id}\n\n"
+            f"[CCB_TASK_COMPLETED]\n"
+            f"Provider: {provider_display}\n"
+            f"Output file: {output_file}\n\n"
+            f"{result_line}"
+        )
+    return (
+        f"CCB_REQ_ID: {req_id}\n\n"
+        f"[CCB_TASK_COMPLETED]\n"
+        f"Provider: {provider_display}\n\n"
+        f"{result_line}"
+    )
 
 
 def load_session_file(session_path: Path) -> dict:
@@ -231,23 +278,18 @@ def main() -> int:
     provider_display = provider_names.get(provider, provider.capitalize())
     req_id = args.req_id or "unknown"
 
-    if output_file:
-        message = f"""CCB_REQ_ID: {req_id}
+    mode = _result_mode_for_caller(caller)
+    if mode == "none":
+        return 0
 
-[CCB_TASK_COMPLETED]
-Provider: {provider_display}
-Output file: {output_file}
-
-Result: {reply_content}
-"""
-    else:
-        message = f"""CCB_REQ_ID: {req_id}
-
-[CCB_TASK_COMPLETED]
-Provider: {provider_display}
-
-Result: {reply_content}
-"""
+    message = format_completion_message(
+        provider_display=provider_display,
+        provider=provider,
+        req_id=req_id,
+        output_file=output_file,
+        reply=reply_content,
+        caller=caller,
+    )
 
     # Find caller's pane_id from session file
     session_files = {
