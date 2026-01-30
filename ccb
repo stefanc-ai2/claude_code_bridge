@@ -25,7 +25,7 @@ from pathlib import Path
 
 script_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(script_dir / "lib"))
-from terminal import TmuxBackend, WeztermBackend, detect_terminal, is_wsl, get_shell_type
+from terminal import TmuxBackend, WeztermBackend, detect_terminal
 from compat import setup_windows_encoding
 from ccb_config import get_backend_env
 from ccb_start_config import DEFAULT_PROVIDERS, ensure_default_start_config, load_start_config
@@ -48,25 +48,10 @@ VERSION = "5.1.2"
 GIT_COMMIT = ""
 GIT_DATE = ""
 
-_WIN_DRIVE_RE = re.compile(r"^[A-Za-z]:([/\\\\]|$)")
-_MNT_DRIVE_RE = re.compile(r"^/mnt/([A-Za-z])/(.*)$")
-_MSYS_DRIVE_RE = re.compile(r"^/([A-Za-z])/(.*)$")
-
-
-def _looks_like_windows_path(value: str) -> bool:
-    s = value.strip()
-    if not s:
-        return False
-    if _WIN_DRIVE_RE.match(s):
-        return True
-    if s.startswith("\\\\") or s.startswith("//"):
-        return True
-    return False
-
-
 def _normalize_path_for_match(value: str) -> str:
     """
-    Normalize a path-like string for loose matching across Windows/WSL/MSYS variations.
+    Normalize a path-like string for loose matching (macOS/Linux only).
+
     This is used only for selecting a session for *current* cwd, so favor robustness.
     """
     s = (value or "").strip()
@@ -80,40 +65,16 @@ def _normalize_path_for_match(value: str) -> str:
         except Exception:
             pass
 
-    # If the path is relative, absolutize it against current cwd for matching purposes only.
-    # This reduces false negatives when upstream tools record a relative cwd.
-    # NOTE: treat Windows-like absolute paths as absolute even on non-Windows hosts.
     try:
-        preview = s.replace("\\", "/")
-        is_abs = (
-            preview.startswith("/")
-            or preview.startswith("//")
-            or bool(_WIN_DRIVE_RE.match(preview))
-            or preview.startswith("\\\\")
-        )
-        if not is_abs:
-            s = str((Path.cwd() / Path(s)).absolute())
+        p = Path(s)
+        if not p.is_absolute():
+            s = str((Path.cwd() / p).absolute())
     except Exception:
         pass
 
     s = s.replace("\\", "/")
 
-    # Map WSL drive mount to Windows-style drive path for comparison.
-    m = _MNT_DRIVE_RE.match(s)
-    if m:
-        drive = m.group(1).lower()
-        rest = m.group(2)
-        s = f"{drive}:/{rest}"
-    else:
-        # Map MSYS /c/... to c:/... (Git-Bash/MSYS2 environments on Windows).
-        m = _MSYS_DRIVE_RE.match(s)
-        if m and ("MSYSTEM" in os.environ or os.name == "nt"):
-            drive = m.group(1).lower()
-            rest = m.group(2)
-            s = f"{drive}:/{rest}"
-
     # Collapse redundant separators and dot segments using POSIX semantics (we forced "/").
-    # Preserve UNC double-slash prefix.
     if s.startswith("//"):
         prefix = "//"
         rest = s[2:]
@@ -122,21 +83,9 @@ def _normalize_path_for_match(value: str) -> str:
     else:
         s = posixpath.normpath(s)
 
-    # Normalize Windows drive letter casing (c:/..., not C:/...).
-    if _WIN_DRIVE_RE.match(s):
-        s = s[0].lower() + s[1:]
-
-    # Drop trailing slash (but keep "/" and "c:/").
+    # Drop trailing slash (but keep "/").
     if len(s) > 1 and s.endswith("/"):
         s = s.rstrip("/")
-        if _WIN_DRIVE_RE.match(s) and not s.endswith("/"):
-            # Ensure drive root keeps trailing slash form "c:/".
-            if len(s) == 2:
-                s = s + "/"
-
-    # On Windows-like paths, compare case-insensitively to avoid drive letter/case issues.
-    if _looks_like_windows_path(s):
-        s = s.casefold()
 
     return s
 
@@ -199,14 +148,6 @@ def _get_git_info() -> str:
 
 
 def _build_keep_open_cmd(provider: str, start_cmd: str) -> str:
-    if get_shell_type() == "powershell":
-        return (
-            f'{start_cmd}; '
-            f'$code = $LASTEXITCODE; '
-            f'Write-Host "`n[{provider}] exited with code $code. Press Enter to close..."; '
-            f'Read-Host; '
-            f'exit $code'
-        )
     return (
         f'{start_cmd}; '
         f'code=$?; '
@@ -217,32 +158,15 @@ def _build_keep_open_cmd(provider: str, start_cmd: str) -> str:
 
 
 def _build_pane_title_cmd(marker: str) -> str:
-    if get_shell_type() == "powershell":
-        safe_sq = marker.replace("'", "''")
-        safe_dq = marker.replace('"', '`"')
-        return (
-            "$esc=[char]27; "
-            f"[Console]::Write(\"$esc]0;{safe_dq}`a\"); "
-            f"$Host.UI.RawUI.WindowTitle = '{safe_sq}'; "
-        )
     return f"printf '\\033]0;{marker}\\007'; "
 
 def _build_export_path_cmd(bin_dir: Path) -> str:
     """
     Ensure CCB's `bin/` is available inside the started pane/session.
 
-    This allows running `oask`/`gask` from within Codex/Gemini/OpenCode environments consistently
-    across WezTerm/tmux (and PowerShell shells on Windows).
+    This allows running CCB's CLI helpers consistently across WezTerm/tmux.
     """
     bin_s = str(bin_dir)
-    if get_shell_type() == "powershell":
-        safe = bin_s.replace("'", "''")
-        # Prefer a fully materialized PATH to avoid cases where the spawned shell inherits a stale
-        # PATH (e.g. tmux server started before Homebrew paths were available).
-        current = (os.environ.get("PATH") or "").replace("'", "''")
-        if current:
-            return f"$env:Path = '{safe};{current}'; "
-        return f"$env:Path = '{safe};' + $env:Path; "
 
     # Materialize PATH from the current CCB process instead of relying on the spawned shell's `$PATH`.
     # This fixes macOS/Homebrew setups where `python3` exists in the interactive shell, but a spawned
@@ -254,9 +178,6 @@ def _build_export_path_cmd(bin_dir: Path) -> str:
 
 
 def _build_cd_cmd(work_dir: Path) -> str:
-    if get_shell_type() == "powershell":
-        safe = str(work_dir).replace("'", "''")
-        return f"Set-Location -Path '{safe}'; "
     return f"cd {shlex.quote(str(work_dir))}; "
 
 
@@ -361,19 +282,6 @@ def _cleanup_tmpclaude_artifacts() -> int:
 def _is_pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
-    if os.name == "nt":
-        try:
-            import ctypes
-
-            kernel32 = ctypes.windll.kernel32
-            SYNCHRONIZE = 0x00100000
-            handle = kernel32.OpenProcess(SYNCHRONIZE, False, int(pid))
-            if handle:
-                kernel32.CloseHandle(handle)
-                return True
-            return False
-        except Exception:
-            return True
     try:
         os.kill(int(pid), 0)
         return True
@@ -649,8 +557,6 @@ class AILauncher:
         return {"enabled": True, "title": title, "start_cmd": start_cmd}
 
     def _default_cmd_start_cmd(self) -> str:
-        if get_shell_type() == "powershell":
-            return "pwsh" if shutil.which("pwsh") else "powershell"
         shell = (os.environ.get("SHELL") or "bash").strip() or "bash"
         if not shutil.which(shell):
             shell = "bash"
@@ -677,14 +583,6 @@ class AILauncher:
     def _build_env_prefix(self, env: dict) -> str:
         if not env:
             return ""
-        if get_shell_type() == "powershell":
-            parts: list[str] = []
-            for key, val in env.items():
-                if val is None:
-                    continue
-                safe = str(val).replace("'", "''")
-                parts.append(f"$env:{key} = '{safe}'; ")
-            return "".join(parts)
         parts = []
         for key, val in env.items():
             if val is None:
@@ -718,9 +616,6 @@ class AILauncher:
     def _run_shell_command(self, cmd: str, *, env: dict | None = None, cwd: str | None = None) -> int:
         cmd = cmd or ""
         env = self._with_bin_path_env(env)
-        if get_shell_type() == "powershell":
-            shell = "pwsh" if shutil.which("pwsh") else "powershell"
-            return subprocess.run([shell, "-Command", cmd], env=env, cwd=cwd).returncode
         shell = (os.environ.get("SHELL") or "bash").strip() or "bash"
         if not shutil.which(shell):
             shell = "bash"
@@ -800,11 +695,8 @@ class AILauncher:
             "stdout": subprocess.DEVNULL,
             "stderr": subprocess.DEVNULL,
             "close_fds": True,
+            "start_new_session": True,
         }
-        if os.name == "nt":
-            kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-        else:
-            kwargs["start_new_session"] = True
 
         try:
             env = os.environ.copy()
@@ -921,7 +813,7 @@ class AILauncher:
             print(f"   {t('solutions')}")
             print(f"   - {t('install_wezterm')}")
             print(f"   - {t('or_install_tmux')}")
-            if (shutil.which("tmux") or shutil.which("tmux.exe")) and not (os.environ.get("TMUX") or os.environ.get("TMUX_PANE")):
+            if shutil.which("tmux") and not (os.environ.get("TMUX") or os.environ.get("TMUX_PANE")):
                 print(f"   - {t('tmux_installed_not_inside')}")
             print(f"   - {t('or_set_ccb_terminal')}")
             return None
@@ -1030,8 +922,7 @@ class AILauncher:
         try:
             if not path.exists():
                 return {}
-            # Session files are written as UTF-8; on Windows PowerShell 5.1 the default encoding
-            # may not be UTF-8, so always decode explicitly and tolerate UTF-8 BOM.
+            # Session files are written as UTF-8; always decode explicitly and tolerate UTF-8 BOM.
             raw = path.read_text(encoding="utf-8-sig")
             data = json.loads(raw)
             return data if isinstance(data, dict) else {}
@@ -1729,23 +1620,6 @@ class AILauncher:
             except Exception:
                 pass
 
-        # Windows 下全局安装的 codex-cli 常见形态是 npm 的 shim（`codex.cmd`）。
-        # Python 的 subprocess 在传入 argv 列表时会走 CreateProcess，无法像 shell 一样解析 `.cmd`，
-        # 因而会触发 [WinError 2] 找不到可执行文件。这里改为通过 shell 执行以确保可启动。
-        if os.name == "nt":
-            env = self._with_bin_path_env()
-            env.update(self._managed_env_overrides())
-            env["CODEX_SESSION_ID"] = self.session_id
-            env["CODEX_RUNTIME_DIR"] = str(runtime)
-            env["CODEX_INPUT_FIFO"] = str(input_fifo)
-            env["CODEX_OUTPUT_FIFO"] = str(output_fifo)
-            env["CODEX_TERMINAL"] = self.terminal_type
-            if self.terminal_type == "wezterm":
-                env["CODEX_WEZTERM_PANE"] = pane_id
-            else:
-                env["CODEX_TMUX_SESSION"] = pane_id
-            return self._run_shell_command(self._build_codex_start_cmd(), env=env, cwd=str(Path.cwd()))
-
         cmd_parts = shlex.split(self._build_codex_start_cmd())
         env = self._with_bin_path_env()
         env.update(self._managed_env_overrides())
@@ -1969,22 +1843,9 @@ class AILauncher:
 
     def _find_claude_cmd(self) -> str:
         """Find Claude CLI executable"""
-        if sys.platform == "win32":
-            for cmd in ["claude.exe", "claude.cmd", "claude.bat", "claude"]:
-                path = shutil.which(cmd)
-                if path:
-                    return path
-            npm_paths = [
-                Path(os.environ.get("APPDATA", "")) / "npm" / "claude.cmd",
-                Path(os.environ.get("ProgramFiles", "")) / "nodejs" / "claude.cmd",
-            ]
-            for npm_path in npm_paths:
-                if npm_path.exists():
-                    return str(npm_path)
-        else:
-            path = shutil.which("claude")
-            if path:
-                return path
+        path = shutil.which("claude")
+        if path:
+            return path
         raise FileNotFoundError(
             "❌ Claude CLI not found. Install: npm install -g @anthropic-ai/claude-code"
         )
@@ -2229,7 +2090,7 @@ class AILauncher:
             print(f"   {t('solutions')}", file=sys.stderr)
             print(f"   - {t('install_wezterm')}", file=sys.stderr)
             print(f"   - {t('or_install_tmux')}", file=sys.stderr)
-            if (shutil.which('tmux') or shutil.which('tmux.exe')):
+            if shutil.which("tmux"):
                 print(f"   - {t('tmux_installed_not_inside')}", file=sys.stderr)
             print(f"   - {t('or_set_ccb_terminal')}", file=sys.stderr)
             return 2
@@ -2542,7 +2403,7 @@ def _find_all_zombie_sessions() -> list[dict]:
     pattern = re.compile(r"^(codex|claude)-(\d+)-")
     zombies = []
 
-    if os.name == "nt" or not shutil.which("tmux"):
+    if not shutil.which("tmux"):
         return []
 
     try:
@@ -2632,27 +2493,18 @@ def _find_daemon_pids_by_name(daemon_name: str) -> list[int]:
     """Find all PIDs of processes matching the daemon name."""
     pids = []
     try:
-        if os.name == "nt":
-            result = subprocess.run(
-                ["tasklist", "/FI", f"IMAGENAME eq python*", "/FO", "CSV", "/NH"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
-            )
-            # Windows: need to check command line, tasklist doesn't show it
-            # Fall back to checking state files
-            pass
-        else:
-            result = subprocess.run(
-                ["pgrep", "-f", f"bin/{daemon_name}$"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
-            )
-            if result.returncode == 0:
-                for line in result.stdout.strip().split("\n"):
-                    line = line.strip()
-                    if line:
-                        try:
-                            pids.append(int(line))
-                        except ValueError:
-                            pass
+        result = subprocess.run(
+            ["pgrep", "-f", f"bin/{daemon_name}$"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
+        if result.returncode == 0:
+            for line in result.stdout.strip().split("\n"):
+                line = line.strip()
+                if line:
+                    try:
+                        pids.append(int(line))
+                    except ValueError:
+                        pass
     except Exception:
         pass
     return pids
@@ -2663,14 +2515,8 @@ def _kill_pid(pid: int, force: bool = False) -> bool:
     if pid <= 0:
         return False
     try:
-        if os.name == "nt":
-            if force:
-                subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
-            else:
-                subprocess.run(["taskkill", "/PID", str(pid)], capture_output=True)
-        else:
-            sig = signal.SIGKILL if force else signal.SIGTERM
-            os.kill(pid, sig)
+        sig = signal.SIGKILL if force else signal.SIGTERM
+        os.kill(pid, sig)
         return True
     except Exception:
         return False
@@ -3010,8 +2856,6 @@ def _detect_cca() -> tuple[str | None, str | None]:
         try:
             if not p.exists() or not p.is_file():
                 return False
-            if platform.system() == "Windows":
-                return True
             return os.access(str(p), os.X_OK)
         except Exception:
             return False
@@ -3037,18 +2881,10 @@ def _detect_cca() -> tuple[str | None, str | None]:
     def _detect_from_install_dir(install_dir: Path) -> tuple[str | None, str | None]:
         if not install_dir.exists() or not install_dir.is_dir():
             return None, None
-        if platform.system() == "Windows":
-            exe_candidates = [
-                install_dir / "bin" / "cca.cmd",
-                install_dir / "cca.cmd",
-                install_dir / "cca.ps1",
-                install_dir / "bin" / "cca.ps1",
-            ]
-        else:
-            exe_candidates = [
-                install_dir / "bin" / "cca",
-                install_dir / "cca",
-            ]
+        exe_candidates = [
+            install_dir / "bin" / "cca",
+            install_dir / "cca",
+        ]
         for exe in exe_candidates:
             if _is_executable(exe):
                 return str(exe), str(install_dir)
@@ -3063,21 +2899,6 @@ def _detect_cca() -> tuple[str | None, str | None]:
         Path.home() / ".local/share/claude_code_autoflow",
         Path.home() / ".local/bin/cca",
     ]
-    # Windows 特定路径
-    if platform.system() == "Windows":
-        localappdata = os.environ.get("LOCALAPPDATA", "")
-        if localappdata:
-            candidates.extend([
-                Path(localappdata) / "cca",
-                Path(localappdata) / "claude_code_autoflow",
-                Path(localappdata) / "cca" / "bin" / "cca.cmd",
-                Path(localappdata) / "cca" / "cca.ps1",
-            ])
-        # 回退路径
-        candidates.extend([
-            Path.home() / "AppData/Local/cca",
-            Path.home() / "AppData/Local/claude_code_autoflow",
-        ])
     for p in candidates:
         if not p.exists():
             continue
@@ -3116,16 +2937,6 @@ def cmd_version(args):
         Path(os.environ.get("CODEX_INSTALL_PREFIX", "")).expanduser() if os.environ.get("CODEX_INSTALL_PREFIX") else None,
         Path.home() / ".local/share/codex-dual",  # Linux/macOS
     ]
-
-    # Windows 特定路径
-    if platform.system() == "Windows":
-        localappdata = os.environ.get("LOCALAPPDATA", "")
-        if localappdata:
-            candidates.extend([
-                Path(localappdata) / "codex-dual",
-                Path(localappdata) / "claude-code-bridge",
-            ])
-        candidates.append(Path.home() / "AppData/Local/codex-dual")
 
     # 选择第一个包含 ccb 文件的目录
     install_dir = None
@@ -3339,7 +3150,7 @@ def cmd_update(args):
         raise RuntimeError(
             "❌ No usable temporary directory found.\n"
             "Fix options:\n"
-            "  - Create /tmp (Linux/WSL): sudo mkdir -p /tmp && sudo chmod 1777 /tmp\n"
+            "  - Create /tmp: sudo mkdir -p /tmp && sudo chmod 1777 /tmp\n"
             "  - Or set TMPDIR/CCB_TMPDIR to a writable path (e.g. export TMPDIR=$HOME/.cache/tmp)"
         )
 
@@ -3534,14 +3345,7 @@ def _find_install_dir() -> Path:
     if env_prefix:
         candidates.append(Path(env_prefix).expanduser())
 
-    if platform.system() == "Windows":
-        localappdata = os.environ.get("LOCALAPPDATA", "")
-        if localappdata:
-            candidates.append(Path(localappdata) / "codex-dual")
-            candidates.append(Path(localappdata) / "claude-code-bridge")
-        candidates.append(Path.home() / "AppData/Local/codex-dual")
-    else:
-        candidates.append(Path.home() / ".local/share/codex-dual")
+    candidates.append(Path.home() / ".local/share/codex-dual")
 
     for candidate in candidates:
         if candidate and (candidate / "ccb").exists():
