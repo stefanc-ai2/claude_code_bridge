@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.DS_Store
 .venv/
 .pytest_cache/
 docs/
@@ -16,7 +17,6 @@ opencode.json
 tmp/
 compare_with_mcp/
 CLAUDE.md
-AGENTS.md
 GEMINI.md
 openspec
 *.log

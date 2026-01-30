@@ -532,6 +532,7 @@ Once started, collaborate naturally. Claude will detect when to delegate tasks.
 ## 🧩 Skills
 
 - **/all-plan**: Collaborative multi-AI design with Superpowers brainstorming.
+- **/pair**: Pair-programming loop (implement → multi-provider review → merge; repeat).
 
 <details>
 <summary><b>/all-plan details & usage</b></summary>
@@ -562,6 +563,34 @@ When to use:
 - Complex features requiring diverse perspectives
 - Architectural decisions with multiple valid approaches
 - High-stakes implementations needing thorough validation
+
+</details>
+
+<details>
+<summary><b>/pair details & usage</b></summary>
+
+Usage:
+```
+/pair <requirement>
+```
+
+Example:
+```
+/pair Add a new CLI flag and update tests
+```
+
+How it works:
+1. **Plan** - Reuse existing plan (or create a compact one)
+2. **Implement** - Make the changes + run validations
+3. **Review** - Ask other mounted providers via `ask` + fetch via `pend`
+4. **Merge** - Apply must-fix/should-fix feedback
+5. **Repeat** - One more implement→review→merge pass
+
+Driver model:
+- The provider where you invoke `/pair` is the **driver**.
+- Other mounted providers act as **reviewers**; they should not run `/pair` recursively.
+Optional:
+- Limit reviewers with `reviewers=codex,claude` (only asks mounted providers from that list).
 
 </details>
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Skills**: Add `/pair` skill for an iterative pair-programming workflow (implement → review → merge; repeat).
+  - Includes multi-provider review via `ask`/`pend`.
+
 ## v5.1.2 (2026-01-29)
 
 ### 🔧 Bug Fixes & Improvements

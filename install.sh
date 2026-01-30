@@ -639,14 +639,22 @@ install_claude_skills() {
     local dst_dir="$skills_dst/$skill_name"
     local dst_skill_md="$dst_dir/SKILL.md"
     mkdir -p "$dst_dir"
-    cp -f "$src_skill_md" "$dst_skill_md"
+    if [[ -e "$dst_skill_md" ]] && [[ "$src_skill_md" -ef "$dst_skill_md" ]]; then
+      :
+    else
+      cp -f "$src_skill_md" "$dst_skill_md"
+    fi
 
     # Copy additional subdirectories (e.g., references/) if they exist
     for subdir in "$skill_dir"*/; do
       if [[ -d "$subdir" ]]; then
         local subdir_name
         subdir_name=$(basename "$subdir")
-        cp -rf "$subdir" "$dst_dir/$subdir_name"
+        local dst_subdir="$dst_dir/$subdir_name"
+        if [[ -e "$dst_subdir" ]] && [[ "$subdir" -ef "$dst_subdir" ]]; then
+          continue
+        fi
+        cp -rf "$subdir" "$dst_subdir"
       fi
     done
 
@@ -699,14 +707,22 @@ install_codex_skills() {
     local dst_dir="$skills_dst/$skill_name"
     local dst_skill_md="$dst_dir/SKILL.md"
     mkdir -p "$dst_dir"
-    cp -f "$src_skill_md" "$dst_skill_md"
+    if [[ -e "$dst_skill_md" ]] && [[ "$src_skill_md" -ef "$dst_skill_md" ]]; then
+      :
+    else
+      cp -f "$src_skill_md" "$dst_skill_md"
+    fi
 
     # Copy additional subdirectories (e.g., references/) if they exist
     for subdir in "$skill_dir"*/; do
       if [[ -d "$subdir" ]]; then
         local subdir_name
         subdir_name=$(basename "$subdir")
-        cp -rf "$subdir" "$dst_dir/$subdir_name"
+        local dst_subdir="$dst_dir/$subdir_name"
+        if [[ -e "$dst_subdir" ]] && [[ "$subdir" -ef "$dst_subdir" ]]; then
+          continue
+        fi
+        cp -rf "$subdir" "$dst_subdir"
       fi
     done
 

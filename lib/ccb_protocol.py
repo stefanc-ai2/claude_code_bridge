@@ -11,9 +11,9 @@ DONE_PREFIX = "CCB_DONE:"
 DONE_LINE_RE_TEMPLATE = r"^\s*CCB_DONE:\s*{req_id}\s*$"
 
 _TRAILING_DONE_TAG_RE = re.compile(
-    r"^\s*(?!CCB_DONE\s*:)[A-Z][A-Z0-9_]*_DONE(?:\s*:\s*\d{8}-\d{6}-\d{3}-\d+)?\s*$"
+    r"^\s*(?!CCB_DONE\s*:)[A-Z][A-Z0-9_]*_DONE(?:\s*:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+))?\s*$"
 )
-_ANY_CCB_DONE_LINE_RE = re.compile(r"^\s*CCB_DONE:\s*\d{8}-\d{6}-\d{3}-\d+\s*$")
+_ANY_CCB_DONE_LINE_RE = re.compile(r"^\s*CCB_DONE:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+)\s*$")
 
 
 def _is_trailing_noise_line(line: str) -> bool:
@@ -41,13 +41,8 @@ def strip_trailing_markers(text: str) -> str:
 
 
 def make_req_id() -> str:
-    # Use readable datetime-PID format with millisecond precision
-    # Format: YYYYMMDD-HHMMSS-mmm-PID (e.g., 20260125-143000-123-12345)
-    import os
-    from datetime import datetime
-    now = datetime.now()
-    ms = now.microsecond // 1000
-    return f"{now.strftime('%Y%m%d-%H%M%S')}-{ms:03d}-{os.getpid()}"
+    # 32-hex id (token_hex(16)) for compactness and uniqueness.
+    return secrets.token_hex(16)
 
 
 def wrap_codex_prompt(message: str, req_id: str) -> str:
