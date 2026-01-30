@@ -38,14 +38,6 @@ def test_codex_comm_find_session_file_ignores_wrong_filename(tmp_path: Path, mon
     assert comm._find_session_file() is None
 
 
-def test_opencode_comm_find_session_file_prefers_ccb_session_file(tmp_path: Path, monkeypatch) -> None:
-    from opencode_comm import OpenCodeCommunicator
-
-    session = _make_session(tmp_path, ".opencode-session")
-    other = tmp_path / "elsewhere"
-    other.mkdir()
-    monkeypatch.chdir(other)
-    monkeypatch.setenv("CCB_SESSION_FILE", str(session))
-
-    comm = object.__new__(OpenCodeCommunicator)
-    assert comm._find_session_file() == session
+#
+# Note: Claude session resolution is handled differently (via claude_session_resolver),
+# so this test file focuses on `_find_session_file` behavior of terminal-based communicators.
