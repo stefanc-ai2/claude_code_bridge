@@ -11,7 +11,7 @@ Usage:
 Environment:
     CCB_COMPLETION_HOOK_ENABLED: Set to "0" to disable (default: "1")
     CCB_COMPLETION_HOOK_TIMEOUT: Timeout in seconds (default: 5)
-    CCB_COMPLETION_HOOK_RESULT_MODE: full|summary|none (default: full, but codex defaults to summary)
+    CCB_COMPLETION_HOOK_RESULT_MODE: full|summary|none (default: summary)
 """
 
 from __future__ import annotations
@@ -60,15 +60,12 @@ def _result_mode_for_caller(caller: str) -> str:
     - none: do not send any completion notification
 
     Defaults:
-    - codex: summary (to avoid duplicate output when using `pend`)
-    - others: full
+    - summary (to avoid duplicate output when using `pend`)
     """
     override = os.environ.get("CCB_COMPLETION_HOOK_RESULT_MODE", "").strip().lower()
     if override in ("full", "summary", "none"):
         return override
-    if caller.strip().lower() == "codex":
-        return "summary"
-    return "full"
+    return "summary"
 
 
 def format_completion_message(*, provider_display: str, provider: str, req_id: str, output_file: str | None, reply: str, caller: str) -> str:
