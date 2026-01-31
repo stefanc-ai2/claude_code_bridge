@@ -17,7 +17,7 @@ from typing import Optional, Tuple, Dict, Any, List
 
 from terminal import get_backend_for_session, get_pane_id_from_session
 from ccb_config import apply_backend_env
-from i18n import t
+from messages import t
 from pane_registry import upsert_registry, registry_path_for_session, load_registry_by_session_id
 from session_utils import find_project_session_file
 from project_id import compute_ccb_project_id

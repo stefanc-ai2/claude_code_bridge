@@ -6,72 +6,9 @@ INSTALL_PREFIX="${CODEX_INSTALL_PREFIX:-$HOME/.local/share/codex-dual}"
 BIN_DIR="${CODEX_BIN_DIR:-$HOME/.local/bin}"
 readonly REPO_ROOT INSTALL_PREFIX BIN_DIR
 
-# i18n support
-detect_lang() {
-  local lang="${CCB_LANG:-auto}"
-  case "$lang" in
-    zh|cn|chinese) echo "zh" ;;
-    en|english) echo "en" ;;
-    *)
-      local sys_lang="${LANG:-${LC_ALL:-${LC_MESSAGES:-}}}"
-      if [[ "$sys_lang" == zh* ]] || [[ "$sys_lang" == *chinese* ]]; then
-        echo "zh"
-      else
-        echo "en"
-      fi
-      ;;
-  esac
-}
-
-CCB_LANG_DETECTED="$(detect_lang)"
-
-# Message function
-msg() {
-  local key="$1"
-  shift
-  local en_msg zh_msg
-  case "$key" in
-    install_complete)
-      en_msg="Installation complete"
-      zh_msg="安装完成" ;;
-    uninstall_complete)
-      en_msg="Uninstall complete"
-      zh_msg="卸载完成" ;;
-    python_version_old)
-      en_msg="Python version too old: $1"
-      zh_msg="Python 版本过旧: $1" ;;
-    requires_python)
-      en_msg="Requires Python 3.10+"
-      zh_msg="需要 Python 3.10+" ;;
-    missing_dep)
-      en_msg="Missing dependency: $1"
-      zh_msg="缺少依赖: $1" ;;
-    detected_env)
-      en_msg="Detected $1 environment"
-      zh_msg="检测到 $1 环境" ;;
-    cancelled)
-      en_msg="Installation cancelled"
-      zh_msg="安装已取消" ;;
-    wezterm_recommended)
-      en_msg="Recommend installing WezTerm as terminal frontend"
-      zh_msg="推荐安装 WezTerm 作为终端前端" ;;
-    root_error)
-      en_msg="ERROR: Do not run as root/sudo. Please run as normal user."
-      zh_msg="错误：请勿以 root/sudo 身份运行。请使用普通用户执行。" ;;
-    *)
-      en_msg="$key"
-      zh_msg="$key" ;;
-  esac
-  if [[ "$CCB_LANG_DETECTED" == "zh" ]]; then
-    echo "$zh_msg"
-  else
-    echo "$en_msg"
-  fi
-}
-
 # Check for root/sudo - refuse to run as root
 if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-  msg root_error >&2
+  echo "ERROR: Do not run as root/sudo. Please run as a normal user." >&2
   exit 1
 fi
 
@@ -639,7 +576,7 @@ install_codex_skills() {
 
 CCB_START_MARKER="<!-- CCB_CONFIG_START -->"
 CCB_END_MARKER="<!-- CCB_CONFIG_END -->"
-LEGACY_RULE_MARKER="## Codex 协作规则"
+LEGACY_RULE_MARKER="## Codex Collaboration Rules"
 
 install_claude_md_config() {
   local claude_md="$HOME/.claude/CLAUDE.md"
@@ -684,21 +621,18 @@ with open('$claude_md', 'w', encoding='utf-8') as f:
     elif grep -qE "$LEGACY_RULE_MARKER|## Codex Collaboration Rules|## Gemini|## OpenCode" "$claude_md" 2>/dev/null; then
       echo "Removing legacy rules and adding new CCB config block..."
       "$PYTHON_BIN" -c "
-import re
+	import re
 
-with open('$claude_md', 'r', encoding='utf-8') as f:
-    content = f.read()
-patterns = [
-    r'## Codex Collaboration Rules.*?(?=\\n## (?!Gemini)|\\Z)',
-    r'## Codex 协作规则.*?(?=\\n## |\\Z)',
-    r'## Gemini Collaboration Rules.*?(?=\\n## |\\Z)',
-    r'## Gemini 协作规则.*?(?=\\n## |\\Z)',
-    r'## OpenCode Collaboration Rules.*?(?=\\n## |\\Z)',
-    r'## OpenCode 协作规则.*?(?=\\n## |\\Z)',
-]
-for p in patterns:
-    content = re.sub(p, '', content, flags=re.DOTALL)
-content = content.rstrip() + '\\n'
+	with open('$claude_md', 'r', encoding='utf-8') as f:
+	    content = f.read()
+	patterns = [
+	    r'## Codex Collaboration Rules.*?(?=\\n## (?!Gemini)|\\Z)',
+	    r'## Gemini Collaboration Rules.*?(?=\\n## |\\Z)',
+	    r'## OpenCode Collaboration Rules.*?(?=\\n## |\\Z)',
+	]
+	for p in patterns:
+	    content = re.sub(p, '', content, flags=re.DOTALL)
+	content = content.rstrip() + '\\n'
 with open('$claude_md', 'w', encoding='utf-8') as f:
     f.write(content)
 "
@@ -1076,21 +1010,18 @@ with open('$claude_md', 'w', encoding='utf-8') as f:
     echo "Removing legacy collaboration rules from CLAUDE.md..."
     if pick_any_python_bin; then
       "$PYTHON_BIN" -c "
-import re
+	import re
 
-with open('$claude_md', 'r', encoding='utf-8') as f:
-    content = f.read()
-patterns = [
-    r'## Codex Collaboration Rules.*?(?=\\n## (?!Gemini)|\\Z)',
-    r'## Codex 协作规则.*?(?=\\n## |\\Z)',
-    r'## Gemini Collaboration Rules.*?(?=\\n## |\\Z)',
-    r'## Gemini 协作规则.*?(?=\\n## |\\Z)',
-    r'## OpenCode Collaboration Rules.*?(?=\\n## |\\Z)',
-    r'## OpenCode 协作规则.*?(?=\\n## |\\Z)',
-]
-for p in patterns:
-    content = re.sub(p, '', content, flags=re.DOTALL)
-content = content.rstrip() + '\\n'
+	with open('$claude_md', 'r', encoding='utf-8') as f:
+	    content = f.read()
+	patterns = [
+	    r'## Codex Collaboration Rules.*?(?=\\n## (?!Gemini)|\\Z)',
+	    r'## Gemini Collaboration Rules.*?(?=\\n## |\\Z)',
+	    r'## OpenCode Collaboration Rules.*?(?=\\n## |\\Z)',
+	]
+	for p in patterns:
+	    content = re.sub(p, '', content, flags=re.DOTALL)
+	content = content.rstrip() + '\\n'
 with open('$claude_md', 'w', encoding='utf-8') as f:
     f.write(content)
 "

@@ -33,7 +33,7 @@ from session_utils import safe_write_session, check_session_writable, find_proje
 from pane_registry import upsert_registry
 from project_id import compute_ccb_project_id
 from process_lock import ProviderLock
-from i18n import t
+from messages import t
 
 setup_windows_encoding()
 
@@ -3130,11 +3130,8 @@ def _cleanup_claude_files() -> None:
             )
             legacy_patterns = [
                 r"## Codex Collaboration Rules.*?(?=\n## (?!Gemini)|\Z)",
-                r"## Codex 协作规则.*?(?=\n## |\Z)",
                 r"## Gemini Collaboration Rules.*?(?=\n## |\Z)",
-                r"## Gemini 协作规则.*?(?=\n## |\Z)",
                 r"## OpenCode Collaboration Rules.*?(?=\n## |\Z)",
-                r"## OpenCode 协作规则.*?(?=\n## |\Z)",
             ]
             for pattern in legacy_patterns:
                 content = re.sub(pattern, "", content, flags=re.DOTALL)
