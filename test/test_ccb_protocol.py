@@ -28,24 +28,6 @@ def test_wrap_request_prompt_structure() -> None:
     assert prompt.endswith(f"{DONE_PREFIX} {req_id}\n")
 
 
-def test_wrap_request_prompt_custom_reply_hint() -> None:
-    req_id = make_req_id()
-    prompt = wrap_request_prompt("msg", req_id, reply_hint="Be concise.")
-    assert "- Be concise." in prompt
-    assert "- Reply in English." not in prompt
-
-    prompt_with_leading_dash = wrap_request_prompt("msg", req_id, reply_hint="- Be concise.")
-    assert "- Be concise." in prompt_with_leading_dash
-    assert "- - Be concise." not in prompt_with_leading_dash
-
-
-def test_wrap_request_prompt_empty_hint_falls_back_to_default() -> None:
-    req_id = make_req_id()
-    for hint in ("", "   ", "---"):
-        prompt = wrap_request_prompt("msg", req_id, reply_hint=hint)
-        assert "- Reply in English." in prompt
-
-
 def test_is_done_text_recognizes_last_nonempty_line() -> None:
     req_id = make_req_id()
     ok = f"hi\n{DONE_PREFIX} {req_id}\n"

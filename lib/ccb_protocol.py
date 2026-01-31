@@ -48,25 +48,14 @@ def make_req_id() -> str:
     return secrets.token_hex(16)
 
 
-def wrap_request_prompt(message: str, req_id: str, *, reply_hint: str = "Reply in English.") -> str:
-    """
-    Wrap a user message for a provider request that will be correlated by `CCB_REQ_ID`/`CCB_DONE`.
-
-    `reply_hint` controls the single bullet under "IMPORTANT:" that nudges response style.
-    It is normalized defensively:
-    - leading "-" is stripped (so callers may pass "- Reply in English." or "Reply in English.")
-    - empty/whitespace hints fall back to "Reply in English."
-    """
+def wrap_request_prompt(message: str, req_id: str) -> str:
+    """Wrap a user message for a provider request that will be correlated by `CCB_REQ_ID`/`CCB_DONE`."""
     message = (message or "").rstrip()
-    reply_hint = (reply_hint or "").strip()
-    if reply_hint.startswith("-"):
-        reply_hint = reply_hint.lstrip("-").strip()
-    reply_hint = reply_hint or "Reply in English."
     return (
         f"{REQ_ID_PREFIX} {req_id}\n\n"
         f"{message}\n\n"
         "IMPORTANT:\n"
-        f"- {reply_hint}\n"
+        "- Reply in English.\n"
         "- End your reply with this exact final line (verbatim, on its own line):\n"
         f"{DONE_PREFIX} {req_id}\n"
     )

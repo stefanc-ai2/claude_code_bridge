@@ -172,7 +172,7 @@ def main(argv: list[str]) -> int:
         outbound_req_id = reply_to_req_id
     else:
         outbound_req_id = req_id
-        outbound = wrap_request_prompt(message, req_id, reply_hint="Reply in English.")
+        outbound = wrap_request_prompt(message, req_id)
 
     work_dir = Path.cwd()
     if provider == "codex":
