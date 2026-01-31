@@ -9,9 +9,11 @@ Providers:
     codex, claude
 """
 
-import sys
-import os
+from __future__ import annotations
+
 import argparse
+import json
+import sys
 from pathlib import Path
 
 script_dir = Path(__file__).resolve().parent
@@ -21,19 +23,51 @@ sys.path.insert(0, str(lib_dir))
 from compat import setup_windows_encoding
 setup_windows_encoding()
 
-
-# Provider to communicator module and class mapping
-PROVIDER_COMMS = {
-    "codex": ("codex_comm", "CodexCommunicator"),
-    "claude": ("claude_comm", "ClaudeCommunicator"),
-}
-
+from caskd_session import CodexProjectSession, load_project_session as load_codex_session
+from laskd_session import ClaudeProjectSession, load_project_session as load_claude_session
 
 def _usage():
     print("Usage: ping <provider> [--session-file FILE]", file=sys.stderr)
     print("", file=sys.stderr)
     print("Providers:", file=sys.stderr)
     print("  codex, claude", file=sys.stderr)
+
+def _read_json(path: Path) -> dict:
+    try:
+        raw = path.read_text(encoding="utf-8-sig", errors="replace")
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _is_inactive(data: dict) -> bool:
+    return isinstance(data, dict) and data.get("active") is False
+
+
+def _load_session(provider: str, *, work_dir: Path, session_file: Path | None) -> tuple[object | None, str | None]:
+    if session_file is not None:
+        data = _read_json(session_file)
+        if not data:
+            return None, f"Session file unreadable or empty: {session_file}"
+        if _is_inactive(data):
+            return None, f"Session is inactive: {session_file}"
+        if provider == "codex":
+            return CodexProjectSession(session_file=session_file, data=data), None
+        return ClaudeProjectSession(session_file=session_file, data=data), None
+
+    if provider == "codex":
+        session = load_codex_session(work_dir)
+    else:
+        session = load_claude_session(work_dir)
+
+    if not session:
+        return None, f"No active {provider} session found for this directory. Run `ccb {provider}` first."
+
+    if _is_inactive(getattr(session, "data", {})):
+        return None, f"Session is inactive: {getattr(session, 'session_file', '')}"
+
+    return session, None
 
 
 def main():
@@ -47,9 +81,9 @@ def main():
         _usage()
         return 0
 
-    if provider not in PROVIDER_COMMS:
+    if provider not in ("codex", "claude"):
         print(f"[ERROR] Unknown provider: {provider}", file=sys.stderr)
-        print(f"[ERROR] Available: {', '.join(PROVIDER_COMMS.keys())}", file=sys.stderr)
+        print("[ERROR] Available: codex, claude", file=sys.stderr)
         return 1
 
     # Parse remaining arguments
@@ -57,24 +91,30 @@ def main():
     parser.add_argument("--session-file", dest="session_file", default=None)
     args, _ = parser.parse_known_args(sys.argv[2:])
 
+    session_file: Path | None = None
     if args.session_file:
-        os.environ["CCB_SESSION_FILE"] = str(args.session_file)
+        session_file = Path(args.session_file).expanduser()
+        if not session_file.exists():
+            print(f"[ERROR] Session file not found: {session_file}", file=sys.stderr)
+            return 1
 
-    # Import and instantiate the communicator
-    module_name, class_name = PROVIDER_COMMS[provider]
-    try:
-        module = __import__(module_name)
-        comm_class = getattr(module, class_name)
-        comm = comm_class()
-        healthy, message = comm.ping(display=False)
-        print(message)
-        return 0 if healthy else 1
-    except ImportError as e:
-        print(f"[ERROR] Module import failed: {e}", file=sys.stderr)
+    session, err = _load_session(provider, work_dir=Path.cwd(), session_file=session_file)
+    if not session:
+        print(f"[ERROR] {err}", file=sys.stderr)
         return 1
+
+    try:
+        ok, pane_or_err = session.ensure_pane()
     except Exception as e:
         print(f"[ERROR] {provider.capitalize()} connectivity test failed: {e}", file=sys.stderr)
         return 1
+
+    if ok:
+        print(f"OK ({provider} pane {pane_or_err})")
+        return 0
+
+    print(f"[ERROR] {provider.capitalize()} pane not reachable: {pane_or_err}", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":
