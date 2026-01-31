@@ -18,7 +18,7 @@ Example:
 **5-Phase Collaborative Design Process:**
 
 1. **Requirement Refinement** - Socratic questioning to uncover hidden needs
-2. **Parallel Design (Multi-Turn)** - Dispatch to mounted CLIs, then stop and wait for replies via reply-via-ask
+2. **Parallel Design (Multi-Turn)** - Dispatch to mounted CLIs, draft your own independent design, then end turn to receive replies via reply-via-ask
 3. **Comparative Analysis** - Merge insights, detect anti-patterns
 4. **Iterative Refinement** - Cross-AI review and critique
 5. **Final Output** - Actionable implementation plan
@@ -28,7 +28,7 @@ Example:
 - **Socratic Ladder**: 7 structured questions for deep requirement mining
 - **Superpowers Lenses**: Systematic alternative exploration (10x scale, remove dependency, invert flow)
 - **Anti-pattern Detection**: Proactive risk identification across all designs
-- **Stop-and-Wait**: Coordinator stops immediately after dispatching (no extra commands, no drafting while waiting)
+- **Reply-via-Ask (Multi-Turn)**: Don’t worry about “waiting”; replies arrive after you end your turn
 
 ## When to Use
 

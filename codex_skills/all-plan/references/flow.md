@@ -269,14 +269,19 @@ Be specific and concrete.
 EOF
 ```
 
-**2.4 STOP (wait for responses)**
+Note: Don’t worry about how to get the reply yet — just send the request and continue. You’ll collect replies in Step 3.1 by ending your turn.
 
-After dispatching planning requests: **stop immediately**.
+**2.4 Codex's Independent Design**
 
-Rules:
-- Do not draft Codex’s design while waiting.
-- Do not run any additional commands (no `sleep`, no polling, no “quick commands”).
-- End your turn and wait for replies via reply-via-ask.
+While waiting for responses, create YOUR own design (do not look at others yet):
+- Goal (1 sentence)
+- Architecture approach
+- Implementation steps (3-7 key steps)
+- Technical considerations
+- Potential risks
+- Acceptance criteria (max 3)
+
+Save as `codex_design`.
 
 ---
 
@@ -284,10 +289,10 @@ Rules:
 
 **3.1 Collect Response(s)**
 
-This flow is **multi-turn**. To get the reply: end your turn and wait (do not run additional commands). Claude will send a message back to your terminal (driver pane) via `ask codex --reply-to=<CLAUDE_PLAN_REQ_ID> ...`.
+This flow is **multi-turn**. To collect responses: end your turn (do not run additional commands). Claude will send a message back to your terminal (driver pane) via `ask codex --reply-to=<CLAUDE_PLAN_REQ_ID> ...`.
 
 - When the reply arrives, save it as `claude_design`.
-- After you have the respondent designs, draft your own design as `codex_design`.
+- Your own design should already be saved as `codex_design`.
 - Do not scrape panes to collect replies (forbidden): no `wezterm cli get-text`, no `tmux capture-pane`, etc. The only supported mechanism is reply-via-ask.
 
 **3.2 Comparative Analysis**
@@ -595,7 +600,7 @@ Next: Review the plan and proceed with implementation when ready.
 
 1. **Structured Clarification**: Use option-based questions to systematically capture requirements
 2. **Readiness Scoring**: Quantify requirement completeness before proceeding
-3. **Stop-and-Wait**: Coordinator stops immediately after dispatching and resumes only when replies arrive via reply-via-ask
+3. **True Independence**: Draft the driver’s design before reading/responding to other CLIs’ designs
 4. **Diverse Perspectives**: Leverage unique strengths of each CLI (Codex: code, Claude: context)
 5. **Evidence-Based Synthesis**: Merge based on comparative analysis, not arbitrary choices
 6. **Iterative Refinement**: Use Claude discussion to validate and improve merged design
