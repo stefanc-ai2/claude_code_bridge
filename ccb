@@ -773,13 +773,9 @@ class AILauncher:
         pane_id = backend.create_pane(full_cmd, str(Path.cwd()), direction=use_direction, percent=50, parent_pane=use_parent)
         self.wezterm_panes[provider] = pane_id
 
-        input_fifo = runtime / "input.fifo"
-        output_fifo = runtime / "output.fifo"
         self._write_codex_session(
             runtime,
             None,
-            input_fifo,
-            output_fifo,
             pane_id=pane_id,
             pane_title_marker=pane_title_marker,
             codex_start_cmd=start_cmd,
@@ -1309,14 +1305,6 @@ class AILauncher:
         runtime = self.runtime_dir / "codex"
         runtime.mkdir(parents=True, exist_ok=True)
 
-        input_fifo = runtime / "input.fifo"
-        output_fifo = runtime / "output.fifo"
-
-        if not input_fifo.exists():
-            os.mkfifo(input_fifo, 0o600)
-        if not output_fifo.exists():
-            os.mkfifo(output_fifo, 0o644)
-
         env_overrides = self._managed_env_overrides()
         start_cmd = self._build_env_prefix(env_overrides) + _build_export_path_cmd(self.script_dir / "bin") + self._build_codex_start_cmd()
         pane_title_marker = "CCB-Codex"
@@ -1348,17 +1336,6 @@ class AILauncher:
 
         self.tmux_panes["codex"] = pane_id
 
-        bridge_script = self.script_dir / "lib" / "codex_dual_bridge.py"
-        bridge_env = os.environ.copy()
-        bridge_env["CODEX_TERMINAL"] = "tmux"
-        bridge_env["CODEX_TMUX_SESSION"] = pane_id
-        bridge_env["CODEX_SESSION_ID"] = self.session_id
-        bridge_env["CODEX_RUNTIME_DIR"] = str(runtime)
-        bridge_env["CODEX_INPUT_FIFO"] = str(input_fifo)
-        bridge_env["CODEX_OUTPUT_FIFO"] = str(output_fifo)
-        bridge_env["CODEX_TMUX_LOG"] = str(runtime / "bridge_output.log")
-        bridge_env["PYTHONPATH"] = str(self.script_dir) + os.pathsep + bridge_env.get("PYTHONPATH", "")
-
         try:
             cp = subprocess.run(
                 ["tmux", "display-message", "-p", "-t", pane_id, "#{pane_pid}"],
@@ -1374,23 +1351,9 @@ class AILauncher:
         except Exception:
             pass
 
-        bridge_proc = subprocess.Popen(
-            [sys.executable, str(bridge_script), "--runtime-dir", str(runtime), "--session-id", self.session_id],
-            env=bridge_env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-        try:
-            (runtime / "bridge.pid").write_text(str(bridge_proc.pid), encoding="utf-8")
-        except Exception:
-            pass
-
         self._write_codex_session(
             runtime,
             None,
-            input_fifo,
-            output_fifo,
             pane_id=pane_id,
             pane_title_marker=pane_title_marker,
             codex_start_cmd=start_cmd,
@@ -1440,9 +1403,6 @@ class AILauncher:
         runtime = self.runtime_dir / "codex"
         runtime.mkdir(parents=True, exist_ok=True)
 
-        input_fifo = runtime / "input.fifo"
-        output_fifo = runtime / "output.fifo"
-
         pane_id = self._current_pane_id()
         if not pane_id:
             print("❌ Unable to determine current pane id for Codex", file=sys.stderr)
@@ -1457,12 +1417,6 @@ class AILauncher:
             except Exception:
                 pass
 
-        if self.terminal_type == "tmux":
-            if not input_fifo.exists():
-                os.mkfifo(input_fifo, 0o600)
-            if not output_fifo.exists():
-                os.mkfifo(output_fifo, 0o644)
-
         title_cmd = _build_pane_title_cmd(pane_title_marker) if self.terminal_type == "wezterm" else ""
         start_cmd = (
             title_cmd
@@ -1474,44 +1428,16 @@ class AILauncher:
         self._write_codex_session(
             runtime,
             None,
-            input_fifo,
-            output_fifo,
             pane_id=pane_id,
             pane_title_marker=pane_title_marker,
             codex_start_cmd=start_cmd,
         )
-
-        if self.terminal_type == "tmux":
-            bridge_script = self.script_dir / "lib" / "codex_dual_bridge.py"
-            bridge_env = os.environ.copy()
-            bridge_env["CODEX_TERMINAL"] = "tmux"
-            bridge_env["CODEX_TMUX_SESSION"] = pane_id
-            bridge_env["CODEX_SESSION_ID"] = self.session_id
-            bridge_env["CODEX_RUNTIME_DIR"] = str(runtime)
-            bridge_env["CODEX_INPUT_FIFO"] = str(input_fifo)
-            bridge_env["CODEX_OUTPUT_FIFO"] = str(output_fifo)
-            bridge_env["CODEX_TMUX_LOG"] = str(runtime / "bridge_output.log")
-            bridge_env["PYTHONPATH"] = str(self.script_dir) + os.pathsep + bridge_env.get("PYTHONPATH", "")
-
-            bridge_proc = subprocess.Popen(
-                [sys.executable, str(bridge_script), "--runtime-dir", str(runtime), "--session-id", self.session_id],
-                env=bridge_env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-            try:
-                (runtime / "bridge.pid").write_text(str(bridge_proc.pid), encoding="utf-8")
-            except Exception:
-                pass
 
         cmd_parts = shlex.split(self._build_codex_start_cmd())
         env = self._with_bin_path_env()
         env.update(self._managed_env_overrides())
         env["CODEX_SESSION_ID"] = self.session_id
         env["CODEX_RUNTIME_DIR"] = str(runtime)
-        env["CODEX_INPUT_FIFO"] = str(input_fifo)
-        env["CODEX_OUTPUT_FIFO"] = str(output_fifo)
         env["CODEX_TERMINAL"] = self.terminal_type
         if self.terminal_type == "wezterm":
             env["CODEX_WEZTERM_PANE"] = pane_id
@@ -1540,7 +1466,7 @@ class AILauncher:
         print(f"❌ {t('unknown_provider', provider=provider)}")
         return 1
 
-    def _write_codex_session(self, runtime, tmux_session, input_fifo, output_fifo, pane_id=None, pane_title_marker=None, codex_start_cmd=None):
+    def _write_codex_session(self, runtime, tmux_session, *, pane_id=None, pane_title_marker=None, codex_start_cmd=None):
         session_file = self._project_session_file(".codex-session")
 
         # Pre-check permissions
@@ -1562,13 +1488,10 @@ class AILauncher:
             "session_id": self.session_id,
             "ccb_project_id": compute_ccb_project_id(work_dir),
             "runtime_dir": str(runtime),
-            "input_fifo": str(input_fifo),
-            "output_fifo": str(output_fifo),
             "terminal": self.terminal_type,
             "tmux_session": tmux_session,
             "pane_id": pane_id,
             "pane_title_marker": pane_title_marker,
-            "tmux_log": str(runtime / "bridge_output.log"),
             "work_dir": str(work_dir),
             "work_dir_norm": _normalize_path_for_match(str(work_dir)),
             "start_dir": str(self.invocation_dir),
@@ -1741,8 +1664,6 @@ class AILauncher:
             runtime = self.runtime_dir / "codex"
             env["CODEX_SESSION_ID"] = self.session_id
             env["CODEX_RUNTIME_DIR"] = str(runtime)
-            env["CODEX_INPUT_FIFO"] = str(runtime / "input.fifo")
-            env["CODEX_OUTPUT_FIFO"] = str(runtime / "output.fifo")
             env["CODEX_TERMINAL"] = self.terminal_type or ""
             pane_id = self._provider_pane_id("codex")
             if self.terminal_type == "wezterm":

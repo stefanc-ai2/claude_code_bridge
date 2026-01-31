@@ -46,7 +46,7 @@ def test_run_up_sorts_providers_in_tmux(monkeypatch, tmp_path: Path) -> None:
     assert called == ["gemini", "opencode"]
 
 
-def test_start_codex_tmux_writes_bridge_pid(monkeypatch, tmp_path: Path) -> None:
+def test_start_codex_tmux_writes_session_file(monkeypatch, tmp_path: Path) -> None:
     ccb = _load_ccb_module()
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".ccb_config").mkdir(parents=True, exist_ok=True)
@@ -54,9 +54,6 @@ def test_start_codex_tmux_writes_bridge_pid(monkeypatch, tmp_path: Path) -> None
 
     # Ensure runtime dir lands under tmp_path.
     monkeypatch.setattr(ccb.tempfile, "gettempdir", lambda: str(tmp_path))
-
-    # Avoid creating real FIFOs in unit tests.
-    monkeypatch.setattr(ccb.os, "mkfifo", lambda p, _mode=0o600: Path(p).write_text("", encoding="utf-8"))
 
     # Fake tmux backend methods (no real tmux dependency).
     class _FakeTmuxBackend:
@@ -101,12 +98,6 @@ def test_start_codex_tmux_writes_bridge_pid(monkeypatch, tmp_path: Path) -> None
 
     monkeypatch.setattr(ccb.subprocess, "run", _fake_run)
 
-    class _FakePopen:
-        def __init__(self, *args, **kwargs):
-            self.pid = 999
-
-    monkeypatch.setattr(ccb.subprocess, "Popen", lambda *a, **k: _FakePopen(*a, **k))
-
     launcher = ccb.AILauncher(providers=["codex"])
     launcher.terminal_type = "tmux"
 
@@ -114,5 +105,13 @@ def test_start_codex_tmux_writes_bridge_pid(monkeypatch, tmp_path: Path) -> None
     assert pane_id is not None
 
     runtime = Path(launcher.runtime_dir) / "codex"
-    assert (runtime / "bridge.pid").exists()
-    assert (runtime / "bridge.pid").read_text(encoding="utf-8").strip() == "999"
+    assert (runtime / "bridge.pid").exists() is False
+    assert (runtime / "codex.pid").exists()
+    assert (runtime / "codex.pid").read_text(encoding="utf-8").strip() == "12345"
+
+    session_file = tmp_path / ".ccb_config" / ".codex-session"
+    data = ccb.json.loads(session_file.read_text(encoding="utf-8"))
+    assert data["pane_id"] == pane_id
+    assert "input_fifo" not in data
+    assert "output_fifo" not in data
+    assert "tmux_log" not in data
