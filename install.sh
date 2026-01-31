@@ -49,21 +49,9 @@ msg() {
     detected_env)
       en_msg="Detected $1 environment"
       zh_msg="检测到 $1 环境" ;;
-    confirm_wsl)
-      en_msg="Confirm continue installing in WSL? (y/N)"
-      zh_msg="确认继续在 WSL 中安装？(y/N)" ;;
     cancelled)
       en_msg="Installation cancelled"
       zh_msg="安装已取消" ;;
-    wsl_warning)
-      en_msg="Detected WSL environment"
-      zh_msg="检测到 WSL 环境" ;;
-    same_env_required)
-      en_msg="ccb/ask/ping must run in the same environment as codex/gemini."
-      zh_msg="ccb/ask/ping 必须与 codex/gemini 在同一环境运行。" ;;
-    confirm_wsl_native)
-      en_msg="Please confirm: you will install and run codex/gemini in WSL (not Windows native)."
-      zh_msg="请确认：你将在 WSL 中安装并运行 codex/gemini（不是 Windows 原生）。" ;;
     wezterm_recommended)
       en_msg="Recommend installing WezTerm as terminal frontend"
       zh_msg="推荐安装 WezTerm 作为终端前端" ;;
@@ -244,58 +232,7 @@ detect_platform() {
 }
 
 
-is_wsl() {
-  [[ -f /proc/version ]] && grep -qi microsoft /proc/version 2>/dev/null
-}
-
-get_wsl_version() {
-  if [[ -n "${WSL_INTEROP:-}" ]]; then
-    echo 2
-  else
-    echo 1
-  fi
-}
-
-check_wsl_compatibility() {
-  if is_wsl; then
-    local ver
-    ver="$(get_wsl_version)"
-    echo "OK: Detected WSL $ver environment"
-  fi
-}
-
-confirm_backend_env_wsl() {
-  if ! is_wsl; then
-    return
-  fi
-
-  if [[ "${CCB_INSTALL_ASSUME_YES:-}" == "1" ]]; then
-    return
-  fi
-
-  if [[ ! -t 0 ]]; then
-    echo "ERROR: Installing in WSL but detected non-interactive terminal; aborted to avoid env mismatch."
-    echo "   If you confirm codex/gemini will be installed and run in WSL:"
-    echo "   Re-run: CCB_INSTALL_ASSUME_YES=1 ./install.sh install"
-    exit 1
-  fi
-
-  echo
-  echo "================================================================"
-  echo "WARN: Detected WSL environment"
-  echo "================================================================"
-  echo "ccb/ask/ping must run in the same environment as codex/gemini."
-  echo
-  echo "Please confirm: you will install and run codex/gemini in WSL (not Windows native)."
-  echo "================================================================"
-  echo
-  read -r -p "Confirm continue installing in WSL? (y/N): " reply
-  case "$reply" in
-    y|Y|yes|YES) ;;
-    *) echo "Installation cancelled"; exit 1 ;;
-  esac
-}
-
+ 
 print_tmux_install_hint() {
   local platform
   platform="$(detect_platform)"
@@ -343,7 +280,7 @@ require_terminal_backend() {
       echo "OK: Detected WezTerm environment (${wezterm_override})"
       return
     fi
-    if command -v wezterm >/dev/null 2>&1 || command -v wezterm.exe >/dev/null 2>&1; then
+    if command -v wezterm >/dev/null 2>&1; then
       echo "OK: Detected WezTerm environment"
       return
     fi
@@ -368,21 +305,9 @@ require_terminal_backend() {
   fi
 
   # 4. Check WezTerm command
-  if command -v wezterm >/dev/null 2>&1 || command -v wezterm.exe >/dev/null 2>&1; then
+  if command -v wezterm >/dev/null 2>&1; then
     echo "OK: Detected WezTerm"
     return
-  fi
-
-  # WSL: Windows PATH may not be injected, try common install paths
-  if [[ -f "/proc/version" ]] && grep -qi microsoft /proc/version 2>/dev/null; then
-    if [[ -x "/mnt/c/Program Files/WezTerm/wezterm.exe" ]] || [[ -f "/mnt/c/Program Files/WezTerm/wezterm.exe" ]]; then
-      echo "OK: Detected WezTerm (/mnt/c/Program Files/WezTerm/wezterm.exe)"
-      return
-    fi
-    if [[ -x "/mnt/c/Program Files (x86)/WezTerm/wezterm.exe" ]] || [[ -f "/mnt/c/Program Files (x86)/WezTerm/wezterm.exe" ]]; then
-      echo "OK: Detected WezTerm (/mnt/c/Program Files (x86)/WezTerm/wezterm.exe)"
-      return
-    fi
   fi
 
   # 5. Check tmux
@@ -411,11 +336,6 @@ has_wezterm() {
     command -v "${wezterm_override}" >/dev/null 2>&1 || [[ -f "${wezterm_override}" ]] && return 0
   fi
   command -v wezterm >/dev/null 2>&1 && return 0
-  command -v wezterm.exe >/dev/null 2>&1 && return 0
-  if [[ -f "/proc/version" ]] && grep -qi microsoft /proc/version 2>/dev/null; then
-    [[ -f "/mnt/c/Program Files/WezTerm/wezterm.exe" ]] && return 0
-    [[ -f "/mnt/c/Program Files (x86)/WezTerm/wezterm.exe" ]] && return 0
-  fi
   return 1
 }
 
@@ -427,18 +347,6 @@ detect_wezterm_path() {
   fi
   local found
   found="$(command -v wezterm 2>/dev/null)" && [[ -n "$found" ]] && echo "$found" && return
-  found="$(command -v wezterm.exe 2>/dev/null)" && [[ -n "$found" ]] && echo "$found" && return
-  if is_wsl; then
-    for drive in c d e f; do
-      for path in "/mnt/${drive}/Program Files/WezTerm/wezterm.exe" \
-                  "/mnt/${drive}/Program Files (x86)/WezTerm/wezterm.exe"; do
-        if [[ -f "$path" ]]; then
-          echo "$path"
-          return
-        fi
-      done
-    done
-  fi
 }
 
 save_wezterm_config() {
@@ -526,7 +434,7 @@ install_bin_links() {
     if ln -sf "$INSTALL_PREFIX/$path" "$BIN_DIR/$name" 2>/dev/null; then
       :
     else
-      # Windows (Git Bash) / restricted environments may not allow symlinks. Fall back to copying.
+      # Restricted environments may not allow symlinks. Fall back to copying.
       cp -f "$INSTALL_PREFIX/$path" "$BIN_DIR/$name"
       chmod +x "$BIN_DIR/$name" 2>/dev/null || true
     fi
@@ -727,61 +635,6 @@ install_codex_skills() {
     echo "  Updated Codex skill: $skill_name"
   done
   echo "Updated Codex skills directory: $skills_dst"
-}
-
-install_droid_skills() {
-  local skills_src="$REPO_ROOT/droid_skills"
-  local skills_dst="${FACTORY_HOME:-$HOME/.factory}/skills"
-
-  if [[ ! -d "$skills_src" ]]; then
-    return
-  fi
-
-  if ! command -v droid >/dev/null 2>&1; then
-    return
-  fi
-
-  mkdir -p "$skills_dst"
-
-  # Clean up obsolete CCB skills (replaced by unified ask/ping)
-  local obsolete_skills="pend cask gask oask dask lask cpend gpend opend dpend lpend cping gping oping dping lping"
-  for obs_skill in $obsolete_skills; do
-    if [[ -d "$skills_dst/$obs_skill" ]]; then
-      rm -rf "$skills_dst/$obs_skill"
-      echo "  Removed obsolete skill: $obs_skill"
-    fi
-  done
-
-  echo "Installing Droid/Factory skills..."
-  for skill_dir in "$skills_src"/*/; do
-    [[ -d "$skill_dir" ]] || continue
-    local skill_name
-    skill_name=$(basename "$skill_dir")
-
-    local src_skill_md=""
-    if [[ -f "$skill_dir/SKILL.md" ]]; then
-      src_skill_md="$skill_dir/SKILL.md"
-    else
-      continue
-    fi
-
-    local dst_dir="$skills_dst/$skill_name"
-    local dst_skill_md="$dst_dir/SKILL.md"
-    mkdir -p "$dst_dir"
-    cp -f "$src_skill_md" "$dst_skill_md"
-
-    # Copy additional subdirectories (e.g., references/) if they exist
-    for subdir in "$skill_dir"*/; do
-      if [[ -d "$subdir" ]]; then
-        local subdir_name
-        subdir_name=$(basename "$subdir")
-        cp -rf "$subdir" "$dst_dir/$subdir_name"
-      fi
-    done
-
-    echo "  Updated Factory skill: $skill_name"
-  done
-  echo "Updated Factory skills directory: $skills_dst"
 }
 
 CCB_START_MARKER="<!-- CCB_CONFIG_START -->"
@@ -1111,14 +964,12 @@ with open('$tmux_conf', 'w', encoding='utf-8') as f:
 }
 
 install_requirements() {
-  check_wsl_compatibility
-  confirm_backend_env_wsl
   require_python_version
   require_terminal_backend
   if ! has_wezterm; then
     echo
     echo "================================================================"
-    echo "NOTE: Recommend installing WezTerm as terminal frontend (better experience, recommended for WSL2/Windows)"
+    echo "NOTE: Recommend installing WezTerm as terminal frontend (better experience)"
     echo "   - Website: https://wezfurlong.org/wezterm/"
     echo "   - Benefits: Smoother split/scroll/font rendering, more stable bridging in WezTerm mode"
     echo "================================================================"
@@ -1132,7 +983,7 @@ cleanup_legacy_files() {
   local cleaned=0
 
   # Legacy daemon scripts in bin/
-  local legacy_daemons="caskd gaskd oaskd laskd daskd"
+  local legacy_daemons="askd caskd gaskd oaskd laskd daskd"
   for daemon in $legacy_daemons; do
     if [[ -f "$BIN_DIR/$daemon" ]]; then
       rm -f "$BIN_DIR/$daemon"
@@ -1149,7 +1000,7 @@ cleanup_legacy_files() {
 
   # Legacy daemon state files in ~/.cache/ccb/
   local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ccb"
-  local legacy_states="caskd.json gaskd.json oaskd.json laskd.json daskd.json"
+  local legacy_states="askd.json caskd.json gaskd.json oaskd.json laskd.json daskd.json"
   for state in $legacy_states; do
     if [[ -f "$cache_dir/$state" ]]; then
       rm -f "$cache_dir/$state"
@@ -1185,7 +1036,6 @@ install_all() {
   install_claude_commands
   install_claude_skills
   install_codex_skills
-  install_droid_skills
   install_claude_md_config
   install_settings_permissions
   install_tmux_config
@@ -1193,7 +1043,7 @@ install_all() {
   echo "   Project dir    : $INSTALL_PREFIX"
   echo "   Executable dir : $BIN_DIR"
   echo "   Claude commands updated"
-  echo "   Global CLAUDE.md configured with Codex/Gemini/OpenCode collaboration rules"
+  echo "   Global CLAUDE.md configured with AI collaboration rules"
   echo "   Global settings.json permissions added"
 }
 
@@ -1329,7 +1179,7 @@ except Exception:
 
 uninstall_claude_skills() {
   local skills_dst="$HOME/.claude/skills"
-  local ccb_skills="ask ping pend autonew mounted all-plan docs"
+  local ccb_skills="ask ping autonew mounted all-plan"
 
   if [[ ! -d "$skills_dst" ]]; then
     return
@@ -1346,7 +1196,7 @@ uninstall_claude_skills() {
 
 uninstall_codex_skills() {
   local skills_dst="${CODEX_HOME:-$HOME/.codex}/skills"
-  local ccb_skills="ask ping pend autonew mounted all-plan"
+  local ccb_skills="ask ping mounted all-plan"
 
   if [[ ! -d "$skills_dst" ]]; then
     return
@@ -1357,40 +1207,6 @@ uninstall_codex_skills() {
     if [[ -d "$skills_dst/$skill" ]]; then
       rm -rf "$skills_dst/$skill"
       echo "  Removed skill: $skill"
-    fi
-  done
-}
-
-uninstall_droid_skills() {
-  local skills_dst="${FACTORY_HOME:-$HOME/.factory}/skills"
-  local ccb_skills="ask ping pend autonew mounted all-plan"
-
-  if [[ ! -d "$skills_dst" ]]; then
-    return
-  fi
-
-  echo "Removing CCB Droid skills..."
-  for skill in $ccb_skills; do
-    if [[ -d "$skills_dst/$skill" ]]; then
-      rm -rf "$skills_dst/$skill"
-      echo "  Removed skill: $skill"
-    fi
-  done
-}
-
-uninstall_droid_commands() {
-  local cmds_dst="${FACTORY_HOME:-$HOME/.factory}/commands"
-  local ccb_cmds="ask.md ping.md pend.md"
-
-  if [[ ! -d "$cmds_dst" ]]; then
-    return
-  fi
-
-  echo "Removing CCB Droid commands..."
-  for cmd in $ccb_cmds; do
-    if [[ -f "$cmds_dst/$cmd" ]]; then
-      rm -f "$cmds_dst/$cmd"
-      echo "  Removed command: $cmd"
     fi
   done
 }
@@ -1446,12 +1262,6 @@ uninstall_all() {
 
   # 8. Remove Codex skills
   uninstall_codex_skills
-
-  # 9. Remove Droid skills
-  uninstall_droid_skills
-
-  # 10. Remove Droid commands
-  uninstall_droid_commands
 
   echo "OK: Uninstall complete"
   echo "   NOTE: Dependencies (python, tmux, wezterm) were not removed"
