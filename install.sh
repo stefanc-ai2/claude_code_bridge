@@ -110,10 +110,22 @@ LEGACY_SCRIPTS=(
   claude_codex
   claude_ai
   claude_bridge
+  # Removed provider-specific CLIs (kept for uninstall/upgrade cleanup)
+  cask
+  lask
+  gask
+  oask
+  dask
   pend
   cpend
+  gpend
+  opend
+  dpend
   lpend
   ccb-completion-hook
+  gping
+  oping
+  dping
   caskd
   gaskd
   oaskd
