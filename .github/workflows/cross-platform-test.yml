@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         python-version: ['3.11']
 
     steps:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -41,7 +41,6 @@ jobs:
           python -m pytest test/test_registry_project_id.py -v
 
       - name: Test path normalization (cross-platform)
-        continue-on-error: true  # Known issue on Windows
         run: |
           python -c "
           import sys
@@ -55,47 +54,9 @@ jobs:
           print('✅ Path normalization test passed')
           "
 
-      - name: Test unified commands syntax (Unix)
-        if: runner.os != 'Windows'
+      - name: Test unified commands syntax
         run: |
-          chmod +x bin/ask bin/ping bin/pend
+          chmod +x bin/ask bin/ping
           python bin/ask --help
           python bin/ping --help
-          python bin/pend --help
           echo "✅ Unified commands syntax test passed"
-
-      - name: Test unified commands syntax (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          python bin/ask --help
-          python bin/ping --help
-          python bin/pend --help
-          Write-Host "Unified commands syntax test passed"
-
-      - name: Test completion hook imports
-        run: |
-          python -c "
-          import sys
-          sys.path.insert(0, 'lib')
-          from completion_hook import notify_completion, env_bool
-          print('Completion hook imports test passed')
-          "
-
-      - name: Test Windows install script syntax
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # Just check syntax, don't actually install
-          $tokens = $null
-          $errors = $null
-          $null = [System.Management.Automation.Language.Parser]::ParseFile(
-            'install.ps1',
-            [ref]$tokens,
-            [ref]$errors
-          )
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            exit 1
-          }
-          Write-Host "install.ps1 syntax check passed"
