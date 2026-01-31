@@ -19,7 +19,7 @@ Arguments (parsed from `$ARGUMENTS`):
 - Optional: `respondents=<comma-separated providers>` (default: all mounted except the driver)
 - Optional: `format=consensus|list|table` (default: `consensus`)
 
-Note: `/poll` is intentionally multi-turn. The driver writes its own answer first, then broadcasts to respondents, then stops and waits for replies via reply-via-ask.
+Note: `/poll` is intentionally multi-turn. The driver broadcasts first, drafts its own independent answer, then ends its turn to collect replies via reply-via-ask.
 
 Examples:
 - `/poll "Should we use Redis or Memcached for sessions?"`
