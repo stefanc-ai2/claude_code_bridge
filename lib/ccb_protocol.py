@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 REQ_ID_PREFIX = "CCB_REQ_ID:"
 DONE_PREFIX = "CCB_DONE:"
+REPLY_PREFIX = "CCB_REPLY:"
+FROM_PREFIX = "CCB_FROM:"
 
 DONE_LINE_RE_TEMPLATE = r"^\s*CCB_DONE:\s*{req_id}\s*$"
 
@@ -55,6 +57,23 @@ def wrap_codex_prompt(message: str, req_id: str) -> str:
         "- Reply normally, in English.\n"
         "- End your reply with this exact final line (verbatim, on its own line):\n"
         f"{DONE_PREFIX} {req_id}\n"
+    )
+
+
+def wrap_reply_payload(*, reply_to_req_id: str, from_provider: str, message: str) -> str:
+    """
+    Wrap a result/notification payload for reply-via-ask.
+
+    This payload is meant to be sent with `--no-wrap` so it does not solicit another reply.
+    """
+    reply_to_req_id = str(reply_to_req_id or "").strip()
+    from_provider = str(from_provider or "").strip()
+    message = (message or "").rstrip()
+    return (
+        f"{REPLY_PREFIX} {reply_to_req_id}\n"
+        f"{FROM_PREFIX} {from_provider}\n"
+        "[CCB_RESULT] No reply required.\n\n"
+        f"{message}\n"
     )
 
 

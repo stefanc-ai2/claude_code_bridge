@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from ccb_protocol import DONE_PREFIX, REQ_ID_PREFIX, is_done_text, make_req_id, strip_done_text, wrap_codex_prompt
+from ccb_protocol import FROM_PREFIX, REPLY_PREFIX, wrap_reply_payload
 from ccb_protocol import strip_trailing_markers
 
 
@@ -65,3 +66,10 @@ def test_strip_trailing_markers_removes_done_and_harness_trailers() -> None:
     req_id = make_req_id()
     text = f"line1\nline2\n{DONE_PREFIX} {req_id}\nHARNESS_DONE\n\n"
     assert strip_trailing_markers(text) == "line1\nline2"
+
+
+def test_wrap_reply_payload_structure() -> None:
+    payload = wrap_reply_payload(reply_to_req_id="abc123", from_provider="codex", message="hello\nworld")
+    assert payload.startswith(f"{REPLY_PREFIX} abc123\n{FROM_PREFIX} codex\n")
+    assert "[CCB_RESULT] No reply required.\n\n" in payload
+    assert payload.endswith("hello\nworld\n")

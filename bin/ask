@@ -38,6 +38,7 @@ from compat import read_stdin_text, setup_windows_encoding
 setup_windows_encoding()
 
 from cli_output import EXIT_ERROR, EXIT_OK
+from ccb_protocol import wrap_reply_payload
 
 
 # Provider to daemon command mapping
@@ -246,6 +247,7 @@ def _usage() -> None:
     print("  --foreground            Run in foreground (no nohup/background)", file=sys.stderr)
     print("  --background            Force background mode", file=sys.stderr)
     print("  --no-wrap               Don't wrap with CCB protocol markers", file=sys.stderr)
+    print("  --reply-to REQ_ID       Send a result/notification payload (implies --no-wrap)", file=sys.stderr)
 
 
 def main(argv: list[str]) -> int:
@@ -271,6 +273,7 @@ def main(argv: list[str]) -> int:
     timeout: float = 3600.0
     notify_mode = False
     no_wrap = False
+    reply_to_req_id: str | None = None
     foreground_mode = _default_foreground()
     parts: list[str] = []
 
@@ -292,6 +295,16 @@ def main(argv: list[str]) -> int:
         if token == "--notify":
             notify_mode = True
             continue
+        if token.startswith("--reply-to="):
+            reply_to_req_id = token.split("=", 1)[1].strip() or None
+            continue
+        if token == "--reply-to":
+            try:
+                reply_to_req_id = (next(it) or "").strip() or None
+            except StopIteration:
+                print("[ERROR] --reply-to requires a req_id", file=sys.stderr)
+                return EXIT_ERROR
+            continue
         if token == "--foreground":
             foreground_mode = True
             continue
@@ -310,9 +323,17 @@ def main(argv: list[str]) -> int:
         print("[ERROR] Message cannot be empty", file=sys.stderr)
         return EXIT_ERROR
 
+    caller = _default_caller()
+    if reply_to_req_id:
+        no_wrap = True
+        message = wrap_reply_payload(
+            reply_to_req_id=reply_to_req_id,
+            from_provider=caller,
+            message=message,
+        )
+
     # Use unified daemon if enabled (CCB_UNIFIED_ASKD=1)
     if _use_unified_daemon() and foreground_mode:
-        caller = _default_caller()
         return _send_via_unified_daemon(provider, message, timeout, no_wrap, caller)
 
     # Notify mode: sync send, no wait for reply (used for hook notifications)
