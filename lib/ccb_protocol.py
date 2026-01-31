@@ -65,8 +65,6 @@ def wrap_reply_payload(
 ) -> str:
     """
     Wrap a result/notification payload for reply-via-ask.
-
-    This payload is meant to be sent with `--no-wrap` so it does not solicit another reply.
     """
     reply_to_req_id = str(reply_to_req_id or "").strip()
     from_provider = str(from_provider or "").strip()
