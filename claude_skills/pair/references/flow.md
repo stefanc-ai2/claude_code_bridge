@@ -123,7 +123,7 @@ Each reply payload should include:
 - `CCB_REPLY: <req_id>` (the req_id from the original `ask`)
 - `CCB_FROM: <provider>`
 
-Do not block on polling/sleeps. Continue working and incorporate feedback as it arrives. If nothing arrives within your time budget, proceed solo.
+To get the feedback, you don’t need to do anything special — don’t invoke `sleep`, polling loops, or any other waiting command. Reviewers will send messages back to your terminal (driver pane) via `ask --reply-to`.
 Do not scrape panes to collect feedback (forbidden): no `wezterm cli get-text`, no `tmux capture-pane`, etc. The only supported mechanism is reply-via-ask.
 
 ## Step 5: Digest and merge

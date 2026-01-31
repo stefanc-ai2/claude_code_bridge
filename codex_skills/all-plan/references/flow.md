@@ -287,9 +287,8 @@ Save as `codex_design`.
 
 **3.1 Collect Response(s)**
 
-This flow is **multi-turn**. Do not poll or block.
+This flow is **multi-turn**. To get the reply, you don’t need to do anything special — don’t invoke `sleep`, polling loops, or any other waiting command. Claude will send a message back to your terminal (driver pane) via `ask codex --reply-to=<CLAUDE_PLAN_REQ_ID> ...`.
 
-- Wait for Claude to reply in your pane via `ask codex --reply-to=<CLAUDE_PLAN_REQ_ID> ...`.
 - When the reply arrives, save it as `claude_design`.
 - Codex design → `codex_design`.
 - Do not scrape panes to collect replies (forbidden): no `wezterm cli get-text`, no `tmux capture-pane`, etc. The only supported mechanism is reply-via-ask.

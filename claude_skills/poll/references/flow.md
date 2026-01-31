@@ -98,7 +98,7 @@ Each reply payload should include:
 - `CCB_REPLY: <POLL_ID>`
 - `CCB_FROM: <provider>`
 
-Do not block on polling/sleeps. Continue working and incorporate answers as they arrive. If nothing arrives within `timeout_s`, proceed with partial responses and note which respondents did not reply.
+To get the reply, you don’t need to do anything special — don’t invoke `sleep`, polling loops, or any other waiting command. The respondent will send a message back to your terminal (driver pane) via `ask --reply-to`.
 Do not scrape panes to collect answers (forbidden): no `wezterm cli get-text`, no `tmux capture-pane`, etc. The only supported mechanism is reply-via-ask.
 
 ## Step 4: Synthesize
