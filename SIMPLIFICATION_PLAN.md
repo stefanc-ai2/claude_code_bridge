@@ -1,10 +1,12 @@
-# CCB Simplification Plan: Claude + Codex Only (Unix-only, No MCP, No `pend`)
+# CCB Simplification Plan: Claude + Codex Only (Unix-only, No MCP, No `pend`, No daemons)
 
 ## Goal
 
 Simplify Claude Code Bridge from a 5-provider, multi-platform system to a minimal 2-provider (Claude + Codex) solution for **macOS + Linux only** (no Windows, no WSL), with **pure-async `ask`** and **no `pend`**.
 
 Additionally: **remove MCP integration** (delegation server + droid setup commands) since it’s out of scope.
+
+New architecture decision: `ask` sends directly to the target tmux/WezTerm pane (no `askd`/`caskd`/`laskd`), and results come back only via reply-via-ask (`--reply-to`).
 
 **Estimated reduction:** ~4,500+ lines of code, 20+ files deleted (likely more once docs/tests/installers are pruned)
 
@@ -17,7 +19,8 @@ Additionally: **remove MCP integration** (delegation server + droid setup comman
 | Providers | Gemini, OpenCode, Droid (3 of 5) |
 | Terminal | Keep both tmux and WezTerm |
 | Platform | Windows/WSL compatibility |
-| Commands | `pend` → replaced by bidirectional `ask` (pure async) |
+| Daemons | `askd`, `caskd`, `laskd` (direct pane send instead) |
+| Commands | `pend`, `cask`, `lask` → replaced by bidirectional `ask` (pure async) |
 | Integrations | MCP delegation server + droid setup commands |
 
 ---
@@ -28,12 +31,15 @@ Additionally: **remove MCP integration** (delegation server + droid setup comman
 - No Windows native support and no WSL-specific behaviors.
 - No MCP server tooling; remove instead of maintaining.
 - No “read results from logs” UX (`pend`, completion hook prompting `pend`, etc.).
+- No daemon-based architecture (`askd`/`caskd`/`laskd`) and no blocking sleep/poll loops in the `ask` path.
 
 ---
 
 ## Beads (Issue Tracking)
 
 Epic: `claude_code_bridge-s7t` - Simplify CCB to Claude+Codex Only
+
+Note: Beads are the canonical work tracker. This markdown file is a high-level design/roadmap; treat details here as advisory.
 
 ### Dependency Graph
 
@@ -52,7 +58,7 @@ Layer 1:
 
 Layer 2:
 ├── s7t.11: Update skills (no pend)               [P1] ← blocked by s7t.8
-└── s7t.9: Make ask/askd pure async               [P1] ← blocked by s7t.8
+└── s7t.9: Make ask direct-send (no daemon)       [P1] ← blocked by s7t.8
 
 Layer 3:
 └── s7t.10: Delete pend + completion hook         [P1] ← blocked by s7t.9, s7t.11
@@ -61,13 +67,17 @@ Layer 4:
 └── s7t.13: Remove MCP integration                [P2] ← blocked by s7t.3
 
 Layer 5:
+├── s7t.17: Delete askd                            [P1] ← blocked by s7t.9
+└── s7t.18: Remove cask/lask + caskd/laskd         [P1] ← blocked by s7t.9
+
+Layer 6:
 ├── s7t.14: Update docs/README/CLAUDE.md          [P2] ← blocked by s7t.4, s7t.7, s7t.10, s7t.13
 └── s7t.15: Update/delete tests + system scripts  [P2] ← blocked by s7t.1, s7t.2, s7t.3, s7t.6, s7t.10
 
-Layer 6:
+Layer 7:
 └── s7t.16: Simplify install.sh (Unix-only)       [P2] ← blocked by s7t.1, s7t.2, s7t.3, s7t.7, s7t.10, s7t.13
 
-Layer 7 (optional):
+Layer 8 (optional):
 └── s7t.12: Consolidate registries                [P3] ← blocked by s7t.6
 ```
 
@@ -186,13 +196,13 @@ def decode_stdin_bytes(data: bytes) -> str:
 
 ## Phase 4: Replace pend with Bidirectional Async Ask
 
-### Design: Pure Async Bidirectional
+### Design: Pure Async Bidirectional (Direct Pane Send)
 
 **New model:**
-- `ask` = “send a message” (always async, prints `req_id` immediately)
+- `ask` = “send a message” (always async, prints `req_id` immediately, sends directly to tmux/WezTerm pane)
 - The callee sends the *result* back to the caller by running another `ask` with `--reply-to=<req_id>`
 
-**No --foreground/--background flags, no await, no pend** - just `ask`.
+**No daemon, no --foreground/--background flags, no await, no pend** - just `ask`.
 
 ### Protocol Enhancement
 
@@ -235,20 +245,15 @@ CCB_FROM: codex
 
 ### s7t.9: Make ask/askd pure async (submit-only)
 
-**Files to MODIFY:**
+### s7t.9: Make ask direct-send (no daemon / no polling)
 
-**`bin/ask`**:
-- Remove `--foreground`, `--background`, and “wait for reply” behaviors
-- Always: submit to `askd`, print req_id, exit immediately
-- Keep `--no-wrap` only if needed for “result/notification” payloads
-
-**`lib/askd/daemon.py`**:
-- Return immediately after enqueueing a task (ack only)
-- Do not wait on `done_event`
-
-**`lib/askd/adapters/codex.py` / `lib/askd/adapters/claude.py`:**
-- Remove log-reading / done-marker waiting loops
-- Just `send_text()` and return success (req_id only)
+**Files to MODIFY (minimum):**
+- `bin/ask`
+  - Remove unified `askd` submission path and background/nohup script path
+  - Resolve session + pane for `codex` and `claude` and `send_text()` directly
+  - Always print `req_id`, exit immediately
+- `bin/ccb-mounted`
+  - Redefine “mounted” as: active session file exists + pane is alive/reachable (no daemon ping)
 
 ### s7t.10: Delete `pend` + completion hook
 
