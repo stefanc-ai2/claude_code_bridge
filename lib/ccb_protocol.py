@@ -4,7 +4,6 @@ import re
 import secrets
 from dataclasses import dataclass
 
-
 REQ_ID_PREFIX = "CCB_REQ_ID:"
 DONE_PREFIX = "CCB_DONE:"
 REPLY_PREFIX = "CCB_REPLY:"
@@ -15,7 +14,9 @@ DONE_LINE_RE_TEMPLATE = r"^\s*CCB_DONE:\s*{req_id}\s*$"
 _TRAILING_DONE_TAG_RE = re.compile(
     r"^\s*(?!CCB_DONE\s*:)[A-Z][A-Z0-9_]*_DONE(?:\s*:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+))?\s*$"
 )
-_ANY_CCB_DONE_LINE_RE = re.compile(r"^\s*CCB_DONE:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+)\s*$")
+_ANY_CCB_DONE_LINE_RE = re.compile(
+    r"^\s*CCB_DONE:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+)\s*$"
+)
 
 
 def _is_trailing_noise_line(line: str) -> bool:
@@ -53,14 +54,15 @@ def wrap_codex_prompt(message: str, req_id: str) -> str:
         f"{REQ_ID_PREFIX} {req_id}\n\n"
         f"{message}\n\n"
         "IMPORTANT:\n"
-        "- Reply normally.\n"
-        "- Reply normally, in English.\n"
+        "- Reply in English.\n"
         "- End your reply with this exact final line (verbatim, on its own line):\n"
         f"{DONE_PREFIX} {req_id}\n"
     )
 
 
-def wrap_reply_payload(*, reply_to_req_id: str, from_provider: str, message: str) -> str:
+def wrap_reply_payload(
+    *, reply_to_req_id: str, from_provider: str, message: str
+) -> str:
     """
     Wrap a result/notification payload for reply-via-ask.
 

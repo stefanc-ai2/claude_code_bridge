@@ -14,7 +14,9 @@ from ccb_protocol import (
 )
 
 # Match both old (32-char hex) and new (YYYYMMDD-HHMMSS-mmm-PID) req_id formats
-ANY_DONE_LINE_RE = re.compile(r"^\s*CCB_DONE:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+)\s*$", re.IGNORECASE)
+ANY_DONE_LINE_RE = re.compile(
+    r"^\s*CCB_DONE:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+)\s*$", re.IGNORECASE
+)
 _SKILL_CACHE: str | None = None
 
 
@@ -103,7 +105,7 @@ def wrap_claude_prompt(message: str, req_id: str) -> str:
         f"{REQ_ID_PREFIX} {req_id}\n\n"
         f"{message}\n\n"
         "IMPORTANT:\n"
-        "- Reply with an execution summary, in English. Do not stay silent.\n"
+        "- Reply with an executive summary, in English. Do not stay silent.\n"
         "- End your reply with this exact final line (verbatim, on its own line):\n"
         f"{DONE_PREFIX} {req_id}\n"
     )
