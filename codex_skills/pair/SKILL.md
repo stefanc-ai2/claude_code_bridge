@@ -1,6 +1,6 @@
 ---
 name: pair
-description: "Driver-mode pair programming: you implement, other mounted providers review (ask/pend); merge and repeat."
+description: "Driver-mode pair programming: you implement, other mounted providers review (ask + reply-via-ask); merge and repeat."
 metadata:
   short-description: Pair-programming loop with review
 ---
@@ -11,7 +11,7 @@ Use a driver/navigator-style loop to get to a higher-quality implementation fast
 
 1. **Plan** (reuse prior `/all-plan` output if it exists)
 2. **Implement** (make the code changes)
-3. **Review** (ask other mounted providers via `ask` + `pend`)
+3. **Review** (ask other mounted providers; receive feedback via reply-via-ask)
 4. **Merge** (apply the best feedback)
 5. **Repeat** (one more implement→review→merge pass)
 

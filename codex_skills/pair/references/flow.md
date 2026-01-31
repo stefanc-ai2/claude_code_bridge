@@ -20,17 +20,17 @@ Run:
 ccb-mounted
 ```
 
-If `ccb-mounted` fails (non-zero) or returns invalid/empty output, stop and ask the user to fix provider mounting/daemons first.
-
-Parse `mounted[]` and define:
+If `ccb-mounted` succeeds and returns a `mounted[]` list, define:
 - For this skill, `{self} = codex`
 - `reviewers = mounted - {self}` (skip yourself)
 - If `reviewers=...` is provided, use `reviewers = (mounted ∩ requested_reviewers) - {self}`
 
+If `ccb-mounted` fails (non-zero) or returns invalid/empty output:
+- If `reviewers=...` is provided, use `reviewers = requested_reviewers - {self}`
+- Otherwise proceed solo
+
 If `reviewers` is empty, proceed solo but still do the same internal checklist.
-If `reviewers` is non-empty, generate a fresh correlation id you can match against later:
-- `PAIR_REVIEW_ID = <timestamp + random>` (example: `2026-01-30T12:34:56Z-8f3a`)
-- `PAIR_DRIVER = {self}` (the provider that invoked `/pair`)
+If `reviewers` is non-empty, capture the printed `req_id` from each `ask` (e.g. `PAIR_REVIEW_REQ_ID_<provider>`) so you can match reply-via-ask feedback later.
 
 ## Step 1: Plan
 
@@ -69,10 +69,15 @@ Provide reviewers with:
 Template:
 ```
 You are my pair-programming navigator (reviewer).
-Reply with feedback only — do not invoke `/pair` and do not implement changes.
+Provide feedback only — do not invoke `/pair` and do not implement changes.
 
-PAIR_REVIEW_ID:
-<paste id>
+When you're done, send your feedback back to me via reply-via-ask:
+1) Copy the `CCB_REQ_ID: <id>` line at the top of this message
+2) Run:
+   CCB_CALLER=<your provider> ask codex --reply-to <id> --no-wrap <<'EOF'
+   <your feedback>
+   EOF
+Do not reply in your own pane; send feedback via `ask --reply-to` so it arrives in my pane.
 
 PAIR_DRIVER:
 codex
@@ -102,7 +107,7 @@ Reply with:
 
 Then run:
 ```bash
-CCB_CALLER=codex ask <provider> --background <<'EOF'
+CCB_CALLER=codex ask <provider> <<'EOF'
 <message>
 EOF
 ```
@@ -110,25 +115,18 @@ EOF
 Notes:
 - Prefer invoking the installed `/ask` skill for your environment if you’re not sure about shell/PowerShell syntax.
 - On Windows native, avoid heredocs; use the `/ask` skill’s Windows instructions.
-- Prefer background mode if your environment defaults to foreground and you want to keep working.
-- If a provider is mounted but slow to respond, continue with other work and revisit with `pend`.
 - To avoid race conditions, send `ask` requests sequentially with a short pause (e.g. ~1s) between providers.
  - Reviewers should not run `/pair` recursively; they should only respond with critique.
 
-## Step 4: Collect feedback (pend)
+## Step 4: Collect feedback (reply-via-ask)
 
-Wait before the first `pend` so you don’t just re-read stale output (recommended: **35s**).
+Reviewers will send feedback back to your pane via `ask --reply-to ... --no-wrap`.
 
-For each reviewer:
-```bash
-pend <provider>
-```
+Each reply payload should include:
+- `CCB_REPLY: <req_id>` (the req_id from the original `ask`)
+- `CCB_FROM: <provider>`
 
-If a response is not ready yet:
-- Wait briefly, then retry `pend <provider>`
-- If it still doesn’t arrive, continue; do not block forever
-If `pend` output doesn’t clearly reference your `PAIR_REVIEW_ID`, treat it as stale and retry once after **15s**.
-Recommended cap: **≤60s per provider** for iteration 1 (then proceed with partial reviews).
+Do not block on polling/sleeps. Continue working and incorporate feedback as it arrives. If nothing arrives within your time budget, proceed solo.
 
 ## Step 5: Digest and merge
 
@@ -159,10 +157,14 @@ Use a shorter prompt that highlights what changed since the first review.
 
 ```
 You are my pair-programming navigator (iteration 2).
-Reply with feedback only — do not invoke `/pair` and do not implement changes.
+Provide feedback only — do not invoke `/pair` and do not implement changes.
 
-PAIR_REVIEW_ID:
-<new id>
+When you're done, send your feedback back to me via reply-via-ask:
+1) Copy the `CCB_REQ_ID: <id>` line at the top of this message
+2) Run:
+   CCB_CALLER=<your provider> ask codex --reply-to <id> --no-wrap <<'EOF'
+   <your feedback>
+   EOF
 
 PAIR_DRIVER:
 codex
