@@ -3,10 +3,10 @@
 ## Project Structure & Module Organization
 
 - `ccb`: primary CLI entrypoint (launcher/orchestrator).
-- `lib/`: Python implementation (terminal backends, daemons, provider comms, config/session utilities).
+- `lib/`: Python implementation (terminal backends, protocol markers, config/session utilities).
 - `bin/`: small CLI tools and wrappers (e.g. `ask`, `ping`, `ccb-mounted`).
 - `test/`: `pytest` suite (+ a few `test/system_*.sh` scripts).
-- `*_skills/`: provider-specific skill bundles installed by `install.sh`.
+- `claude_skills/`, `codex_skills/`: provider skill bundles installed by `install.sh`.
 
 ## Build, Test, and Development Commands
 
@@ -21,19 +21,19 @@
 - Python: 4-space indentation, type hints where practical, keep modules small and focused.
 - New Python files should start with `from __future__ import annotations` to match existing code.
 - Naming: `snake_case` for functions/files, `CapWords` for classes, constants in `UPPER_SNAKE_CASE`.
-- Shell scripts: prefer `bash` with `set -euo pipefail`; keep behavior cross-platform (macOS/Linux/WSL/Windows).
+- Shell scripts: prefer `bash` with `set -euo pipefail`; keep behavior cross-platform (macOS/Linux).
 
 ## Testing Guidelines
 
 - Framework: `pytest` (tests live in `test/test_*.py`).
-- Some tests require `tmux`; on Windows CI they’re skipped via `-k "not tmux"`.
+- Some tests require `tmux`.
 - If you touch tmux behavior, validate on a system with tmux installed:
   `TERM=xterm-256color python -m pytest test/ -v --tb=short`.
 
 ## Commit & Pull Request Guidelines
 
 - Commit messages follow a Conventional-Commits style seen in history: `feat: …`, `fix: …`, `refactor: …`, `chore: …`, `release: …` (optional scope like `fix(askd_client): …`).
-- PRs should include: what changed, why, how to test, and any OS-specific notes (Windows/WSL/macOS/Linux).
+- PRs should include: what changed, why, how to test, and any OS-specific notes (macOS/Linux).
 - Update `README.md` when changing user-facing commands, flags, or defaults.
 
 ## Security & Configuration Tips
