@@ -49,20 +49,14 @@ Send one request per respondent.
 
 Template:
 ```
-CCB_REQ_ID: <paste id>
-
 You are responding to a multi-provider poll. Provide an answer only — do not invoke `/poll`, `/pair`, or `/all-plan`, and do not implement changes.
 
 When you're done, send your answer back to the poll driver via reply-via-ask:
-1) Copy the `CCB_REQ_ID: <id>` line at the top of this message
+1) Copy the `CCB_REQ_ID: ...` line at the top of this message
 2) Run:
-   ask claude --reply-to <id> --caller <your provider> --no-wrap <<'EOF'
+   ask claude --reply-to <id> --caller <your provider> <<'EOF'
    <your answer>
    EOF
-   # (or, using env vars)
-   # CCB_CALLER=<your provider> ask claude --reply-to <id> --no-wrap <<'EOF'
-   # <your answer>
-   # EOF
 Do not reply in your own pane; send your answer via `ask --reply-to` so it arrives in the driver's pane.
 
 POLL_ID:
@@ -82,13 +76,7 @@ Reply with:
 
 Then run, once per respondent (sequentially; pause ~1s between providers):
 ```bash
-CCB_CALLER=claude CCB_REQ_ID="$POLL_ID" ask <provider> --no-wrap <<'EOF'
-<message>
-EOF
-```
-Equivalent (flags):
-```bash
-ask <provider> --no-wrap --req-id "$POLL_ID" <<'EOF'
+ask <provider> --req-id "$POLL_ID" <<'EOF'
 <message>
 EOF
 ```
@@ -102,14 +90,9 @@ Use the same structure as the respondent template so your answer can be synthesi
 - Confidence: high|medium|low
 - Key assumptions / caveats (bullets)
 
-Notes:
-- On Windows native, avoid heredocs; use the `/ask` skill’s Windows instructions.
-  - PowerShell example: `$env:CCB_CALLER="claude"; $env:CCB_REQ_ID=$POLL_ID; Get-Content $msgFile -Raw | ask <provider> --no-wrap`
-  - cmd.exe example: `set CCB_CALLER=claude && set CCB_REQ_ID=%POLL_ID% && type %MSG_FILE% | ask <provider> --no-wrap`
-
 ## Step 3: Collect answers (reply-via-ask)
 
-Respondents send answers back to your pane via `ask --reply-to ... --no-wrap`.
+Respondents send answers back to your pane via `ask --reply-to ... --caller <provider>`.
 
 Each reply payload should include:
 - `CCB_REPLY: <POLL_ID>`

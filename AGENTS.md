@@ -33,7 +33,7 @@
 ## Interaction / Protocol Rules
 
 - **Do not scrape panes** to collect responses (forbidden): do not use `wezterm cli get-text`, `tmux capture-pane`, or similar.
-- **Replies must arrive via reply-via-ask** (`ask --reply-to ... --no-wrap`); treat `ask` as async send-only.
+- **Replies must arrive via reply-via-ask** (`ask --reply-to ... --caller <provider>`); treat `ask` as async send-only.
 
 ## Commit & Pull Request Guidelines
 

@@ -18,7 +18,7 @@ The first argument must be the provider name:
 ## Execution (MANDATORY)
 
 ```bash
-CCB_CALLER=codex ask $PROVIDER <<'EOF'
+ask $PROVIDER <<'EOF'
 $MESSAGE
 EOF
 ```
@@ -35,7 +35,7 @@ If you receive a request that begins with `CCB_REQ_ID: <req_id>`, treat it as a 
 
 When done, reply back to Claude via `ask`:
 ```bash
-ask claude --reply-to "$REQ_ID" --caller codex --no-wrap <<'EOF'
+ask claude --reply-to "$REQ_ID" --caller codex <<'EOF'
 <your result here>
 EOF
 ```

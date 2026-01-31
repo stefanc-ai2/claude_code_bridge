@@ -30,7 +30,7 @@ If `ccb-mounted` fails (non-zero) or returns invalid/empty output:
 - Otherwise proceed solo
 
 If `reviewers` is empty, proceed solo but still do the same internal checklist.
-If `reviewers` is non-empty, generate a stable 32-hex `req_id` per reviewer (e.g. `PAIR_REVIEW_REQ_ID_<provider>`), use it as the `ask` request id (`CCB_REQ_ID=...` or `--req-id ...`), and include it in the message as `CCB_REQ_ID: <id>` so the reviewer can reply via reply-via-ask.
+If `reviewers` is non-empty, generate a stable 32-hex `req_id` per reviewer (e.g. `PAIR_REVIEW_REQ_ID_<provider>`) and use it as the `ask` request id (`--req-id ...` or `CCB_REQ_ID=...`). `ask` will include a `CCB_REQ_ID: <id>` line at the top automatically so the reviewer can reply via reply-via-ask.
 
 ## Step 1: Plan
 
@@ -68,21 +68,15 @@ Provide reviewers with:
 
 Template:
 ```
-CCB_REQ_ID: <paste id>
-
 You are my pair-programming navigator (reviewer).
 Provide feedback only — do not invoke `/pair` and do not implement changes.
 
 When you're done, send your feedback back to me via reply-via-ask:
-1) Copy the `CCB_REQ_ID: <id>` line at the top of this message
+1) Copy the `CCB_REQ_ID: ...` line at the top of this message
 2) Run:
-   ask claude --reply-to <id> --caller <your provider> --no-wrap <<'EOF'
+   ask claude --reply-to <id> --caller <your provider> <<'EOF'
    <your feedback>
    EOF
-   # (or, using env vars)
-   # CCB_CALLER=<your provider> ask claude --reply-to <id> --no-wrap <<'EOF'
-   # <your feedback>
-   # EOF
 Do not reply in your own pane; send feedback via `ask --reply-to` so it arrives in my pane.
 
 PAIR_DRIVER:
@@ -111,21 +105,19 @@ Reply with:
 - Nice-to-have ideas
 ```
 
-Then run `ask <provider> --no-wrap` (using the platform-appropriate invocation for your environment).
-Recommended: set `CCB_CALLER=claude` when invoking `ask` so reply payloads include the correct `CCB_FROM`.
+Then run `ask <provider> --req-id "<id>"` (using the platform-appropriate invocation for your environment).
+Reviewers should use `--caller <your provider>` on `--reply-to` so reply payloads include the correct `CCB_FROM`.
 
-If you need a raw example for Linux/macOS/WSL:
+If you need a raw example for Linux/macOS:
 ```bash
-CCB_CALLER=claude ask <provider> --no-wrap <<'EOF'
+ask <provider> --req-id "<id>" <<'EOF'
 <message>
 EOF
 ```
 
-On Windows native, avoid heredocs; use the `/ask` skill’s Windows instructions.
-
 ## Step 4: Collect feedback (reply-via-ask)
 
-Reviewers will send feedback back to your pane via `ask --reply-to ... --no-wrap`.
+Reviewers will send feedback back to your pane via `ask --reply-to ... --caller <provider>`.
 
 Each reply payload should include:
 - `CCB_REPLY: <req_id>` (the req_id from the original `ask`)
@@ -166,9 +158,9 @@ You are my pair-programming navigator (iteration 2).
 Provide feedback only — do not invoke `/pair` and do not implement changes.
 
 When you're done, send your feedback back to me via reply-via-ask:
-1) Copy the `CCB_REQ_ID: <id>` line at the top of this message
+1) Copy the `CCB_REQ_ID: ...` line at the top of this message
 2) Run:
-   CCB_CALLER=<your provider> ask claude --reply-to <id> --no-wrap <<'EOF'
+   ask claude --reply-to <id> --caller <your provider> <<'EOF'
    <your feedback>
    EOF
 

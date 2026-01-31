@@ -30,7 +30,7 @@ If `ccb-mounted` fails (non-zero) or returns invalid/empty output:
 - Otherwise proceed solo
 
 If `reviewers` is empty, proceed solo but still do the same internal checklist.
-If `reviewers` is non-empty, generate a stable 32-hex `req_id` per reviewer (e.g. `PAIR_REVIEW_REQ_ID_<provider>`), use it as the `ask` request id (`CCB_REQ_ID=...` or `--req-id ...`), and include it in the message as `CCB_REQ_ID: <id>` so the reviewer can reply via reply-via-ask.
+If `reviewers` is non-empty, generate a stable 32-hex `req_id` per reviewer (e.g. `PAIR_REVIEW_REQ_ID_<provider>`) and use it as the `ask` request id (`--req-id ...` or `CCB_REQ_ID=...`). `ask` will include a `CCB_REQ_ID: <id>` line at the top automatically so the reviewer can reply via reply-via-ask.
 
 ## Step 1: Plan
 
@@ -68,21 +68,15 @@ Provide reviewers with:
 
 Template:
 ```
-CCB_REQ_ID: <paste id>
-
 You are my pair-programming navigator (reviewer).
 Provide feedback only — do not invoke `/pair` and do not implement changes.
 
 When you're done, send your feedback back to me via reply-via-ask:
-1) Copy the `CCB_REQ_ID: <id>` line at the top of this message
+1) Copy the `CCB_REQ_ID: ...` line at the top of this message
 2) Run:
-   ask codex --reply-to <id> --caller <your provider> --no-wrap <<'EOF'
+   ask codex --reply-to <id> --caller <your provider> <<'EOF'
    <your feedback>
    EOF
-   # (or, using env vars)
-   # CCB_CALLER=<your provider> ask codex --reply-to <id> --no-wrap <<'EOF'
-   # <your feedback>
-   # EOF
 Do not reply in your own pane; send feedback via `ask --reply-to` so it arrives in my pane.
 
 PAIR_DRIVER:
@@ -113,20 +107,19 @@ Reply with:
 
 Then run:
 ```bash
-CCB_CALLER=codex ask <provider> --no-wrap <<'EOF'
+ask <provider> --req-id "<id>" <<'EOF'
 <message>
 EOF
 ```
 
 Notes:
-- Prefer invoking the installed `/ask` skill for your environment if you’re not sure about shell/PowerShell syntax.
-- On Windows native, avoid heredocs; use the `/ask` skill’s Windows instructions.
+- Prefer invoking the installed `/ask` skill for your environment if you’re not sure about shell syntax.
 - To avoid race conditions, send `ask` requests sequentially with a short pause (e.g. ~1s) between providers.
  - Reviewers should not run `/pair` recursively; they should only respond with critique.
 
 ## Step 4: Collect feedback (reply-via-ask)
 
-Reviewers will send feedback back to your pane via `ask --reply-to ... --no-wrap`.
+Reviewers will send feedback back to your pane via `ask --reply-to ... --caller <provider>`.
 
 Each reply payload should include:
 - `CCB_REPLY: <req_id>` (the req_id from the original `ask`)
@@ -167,9 +160,9 @@ You are my pair-programming navigator (iteration 2).
 Provide feedback only — do not invoke `/pair` and do not implement changes.
 
 When you're done, send your feedback back to me via reply-via-ask:
-1) Copy the `CCB_REQ_ID: <id>` line at the top of this message
+1) Copy the `CCB_REQ_ID: ...` line at the top of this message
 2) Run:
-   CCB_CALLER=<your provider> ask codex --reply-to <id> --no-wrap <<'EOF'
+   ask codex --reply-to <id> --caller <your provider> <<'EOF'
    <your feedback>
    EOF
 

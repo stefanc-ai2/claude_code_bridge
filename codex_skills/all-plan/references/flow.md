@@ -247,13 +247,11 @@ Generate a stable 32-hex `req_id` as `CLAUDE_PLAN_REQ_ID`, then send the request
 ```bash
 CLAUDE_PLAN_REQ_ID="$(python -c 'import secrets; print(secrets.token_hex(16))')"
 
-ask claude --no-wrap --req-id "$CLAUDE_PLAN_REQ_ID" <<'EOF'
-CCB_REQ_ID: <paste $CLAUDE_PLAN_REQ_ID>
-
+ask claude --req-id "$CLAUDE_PLAN_REQ_ID" <<'EOF'
 You are participating in /all-plan. Reply with design feedback only (no code changes).
 
 When done, send your design back to Codex via:
-  ask codex --reply-to=<req_id> --caller claude --no-wrap "<your design>"
+  ask codex --reply-to=<req_id> --caller claude "<your design>"
 
 Design a solution for this requirement:
 
@@ -381,13 +379,11 @@ Save as `merged_design_v1`.
 ```bash
 CLAUDE_REVIEW_1_REQ_ID="$(python -c 'import secrets; print(secrets.token_hex(16))')"
 
-ask claude --no-wrap --req-id "$CLAUDE_REVIEW_1_REQ_ID" <<'EOF'
-CCB_REQ_ID: <paste $CLAUDE_REVIEW_1_REQ_ID>
-
+ask claude --req-id "$CLAUDE_REVIEW_1_REQ_ID" <<'EOF'
 You are participating in /all-plan. Reply with critique only (no code changes).
 
 When done, send your review back to Codex via:
-  ask codex --reply-to=<req_id> --caller claude --no-wrap "<your review>"
+  ask codex --reply-to=<req_id> --caller claude "<your review>"
 
 Review this merged design based on all CLI inputs:
 
@@ -419,13 +415,11 @@ Based on Claude's review, refine the design:
 ```bash
 CLAUDE_REVIEW_2_REQ_ID="$(python -c 'import secrets; print(secrets.token_hex(16))')"
 
-ask claude --no-wrap --req-id "$CLAUDE_REVIEW_2_REQ_ID" <<'EOF'
-CCB_REQ_ID: <paste $CLAUDE_REVIEW_2_REQ_ID>
-
+ask claude --req-id "$CLAUDE_REVIEW_2_REQ_ID" <<'EOF'
 You are participating in /all-plan. Reply with final suggestions only (no code changes).
 
 When done, send your response back to Codex via:
-  ask codex --reply-to=<req_id> --caller claude --no-wrap "<your response>"
+  ask codex --reply-to=<req_id> --caller claude "<your response>"
 
 Refined design based on your feedback:
 

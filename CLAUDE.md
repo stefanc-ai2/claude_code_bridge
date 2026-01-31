@@ -41,7 +41,7 @@ TERM=xterm-256color python -m pytest test/ -v --tb=short
 
 - `lib/terminal.py`: terminal backend abstraction (`TmuxBackend`, `WeztermBackend`)
 - `lib/*_session.py`: loads per-project session bindings and ensures pane liveness
-- `lib/ccb_protocol.py`: protocol markers (`CCB_REQ_ID`, `CCB_REPLY`, `CCB_FROM`, `CCB_DONE`) + wrapping helpers
+- `lib/ccb_protocol.py`: protocol markers (`CCB_REQ_ID`, `CCB_REPLY`, `CCB_FROM`) + wrapping helpers
 - `lib/project_id.py`, `lib/session_utils.py`, `lib/session_registry.py`: project isolation and session lookup
 
 ### Session isolation
