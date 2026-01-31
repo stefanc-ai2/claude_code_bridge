@@ -64,10 +64,6 @@ When you're done, send your answer back to the poll driver via reply-via-ask:
    ask codex --reply-to <id> --caller <your provider> --no-wrap <<'EOF'
    <your answer>
    EOF
-   # (or, using env vars)
-   # CCB_CALLER=<your provider> ask codex --reply-to <id> --no-wrap <<'EOF'
-   # <your answer>
-   # EOF
 Do not reply in your own pane; send your answer via `ask --reply-to` so it arrives in the driver's pane.
 
 POLL_ID:
@@ -87,13 +83,7 @@ Reply with:
 
 Then run, once per respondent (sequentially; pause ~1s between providers):
 ```bash
-CCB_CALLER=codex CCB_REQ_ID="$POLL_ID" ask <provider> --no-wrap <<'EOF'
-<message>
-EOF
-```
-Equivalent (flags):
-```bash
-ask <provider> --no-wrap --req-id "$POLL_ID" <<'EOF'
+ask <provider> --caller <your provider> --req-id "$POLL_ID" <<'EOF'
 <message>
 EOF
 ```

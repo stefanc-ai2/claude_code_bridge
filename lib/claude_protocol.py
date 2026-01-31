@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ccb_protocol import (
-    DONE_PREFIX,
-    REQ_ID_PREFIX,
     is_done_text,
     make_req_id,
     strip_done_text,
@@ -96,19 +94,12 @@ def extract_reply_for_req(text: str, req_id: str) -> str:
     return "\n".join(segment).rstrip()
 
 
-def wrap_claude_prompt(message: str, req_id: str) -> str:
+def apply_claude_skills(message: str) -> str:
     message = (message or "").rstrip()
     skills = _load_claude_skills()
     if skills:
         message = f"{skills}\n\n{message}".strip()
-    return (
-        f"{REQ_ID_PREFIX} {req_id}\n\n"
-        f"{message}\n\n"
-        "IMPORTANT:\n"
-        "- Reply with an executive summary, in English. Do not stay silent.\n"
-        "- End your reply with this exact final line (verbatim, on its own line):\n"
-        f"{DONE_PREFIX} {req_id}\n"
-    )
+    return message
 
 
 @dataclass(frozen=True)
@@ -137,7 +128,7 @@ class LaskdResult:
 
 
 __all__ = [
-    "wrap_claude_prompt",
+    "apply_claude_skills",
     "extract_reply_for_req",
     "LaskdRequest",
     "LaskdResult",

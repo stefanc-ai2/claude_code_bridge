@@ -44,13 +44,14 @@ lib_dir = script_dir.parent / "lib"
 sys.path.insert(0, str(lib_dir))
 
 from compat import read_stdin_text, setup_windows_encoding
+
 setup_windows_encoding()
 
+from ccb_protocol import make_req_id, wrap_reply_payload, wrap_request_prompt
+from claude_protocol import apply_claude_skills
+from claude_session import load_project_session as load_claude_session
 from cli_output import EXIT_ERROR, EXIT_OK
 from codex_session import load_project_session as load_codex_session
-from ccb_protocol import make_req_id, wrap_codex_prompt, wrap_reply_payload
-from claude_protocol import wrap_claude_prompt
-from claude_session import load_project_session as load_claude_session
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -85,7 +86,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Send a message to an AI provider's interactive pane (tmux/WezTerm).",
         epilog=(
             "Examples:\n"
-            "  ask codex \"Review this diff\"\n"
+            '  ask codex "Review this diff"\n'
             "  ask claude <<'EOF'\n"
             "  Multi-line message...\n"
             "  EOF\n"
@@ -95,15 +96,15 @@ def _parser() -> argparse.ArgumentParser:
             "\n"
             "  # Stable correlation id (32-hex) for reply-via-ask workflows\n"
             "  REQ_ID=\"$(python -c 'import secrets; print(secrets.token_hex(16))')\"\n"
-            "  ask claude --no-wrap --req-id \"$REQ_ID\" <<EOF\n"
+            '  ask claude --no-wrap --req-id "$REQ_ID" <<EOF\n'
             "  CCB_REQ_ID: $REQ_ID\n"
             "\n"
             "  Send your response back via:\n"
-            "    ask codex --reply-to $REQ_ID --caller claude --no-wrap \"<your answer>\"\n"
+            '    ask codex --reply-to $REQ_ID --caller claude --no-wrap "<your answer>"\n'
             "  EOF\n"
             "\n"
             "  # Reply-via-ask payload without env vars\n"
-            "  ask codex --reply-to \"$REQ_ID\" --caller claude --no-wrap \"Here are my notes...\"\n"
+            '  ask codex --reply-to "$REQ_ID" --caller claude --no-wrap "Here are my notes..."\n'
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -111,11 +112,8 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str]) -> int:
     parser = _parser()
-    parser.add_argument("provider", choices=("codex", "claude"), help="Target provider pane to send to.")
     parser.add_argument(
-        "--no-wrap",
-        action="store_true",
-        help="Send message as-is (no protocol wrapper).",
+        "provider", choices=("codex", "claude"), help="Target provider pane to send to."
     )
     parser.add_argument(
         "--reply-to",
@@ -161,7 +159,7 @@ def main(argv: list[str]) -> int:
 
     reply_to_req_id = (args.reply_to_req_id or "").strip() or None
 
-    caller = (str(args.caller).strip() if args.caller else _default_caller())
+    caller = str(args.caller).strip() if args.caller else _default_caller()
     req_id = _resolve_req_id(args.override_req_id)
 
     if reply_to_req_id:
@@ -174,12 +172,7 @@ def main(argv: list[str]) -> int:
         outbound_req_id = reply_to_req_id
     else:
         outbound_req_id = req_id
-        if args.no_wrap:
-            outbound = (message or "").rstrip() + "\n"
-        elif provider == "codex":
-            outbound = wrap_codex_prompt(message, req_id)
-        else:
-            outbound = wrap_claude_prompt(message, req_id)
+        outbound = wrap_request_prompt(message, req_id, reply_hint="Reply in English.")
 
     work_dir = Path.cwd()
     if provider == "codex":
@@ -188,7 +181,10 @@ def main(argv: list[str]) -> int:
         session = load_claude_session(work_dir)
 
     if not session:
-        print(f"[ERROR] No active {provider} session found for this directory.", file=sys.stderr)
+        print(
+            f"[ERROR] No active {provider} session found for this directory.",
+            file=sys.stderr,
+        )
         print(f"[ERROR] Run `ccb {provider}` in this project first.", file=sys.stderr)
         return EXIT_ERROR
 
@@ -197,7 +193,9 @@ def main(argv: list[str]) -> int:
         backend = session.backend()
         last_err = getattr(backend, "last_list_error", None)
         extra = f" (backend: {last_err})" if last_err else ""
-        print(f"[ERROR] Session pane not available: {pane_or_err}{extra}", file=sys.stderr)
+        print(
+            f"[ERROR] Session pane not available: {pane_or_err}{extra}", file=sys.stderr
+        )
         return EXIT_ERROR
 
     backend = session.backend()
