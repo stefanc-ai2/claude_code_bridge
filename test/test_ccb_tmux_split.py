@@ -26,7 +26,8 @@ def test_run_up_sorts_providers_in_tmux(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("TMUX_PANE", "%0")
     monkeypatch.setattr(ccb, "detect_terminal", lambda: "tmux")
 
-    launcher = ccb.AILauncher(providers=["opencode", "gemini", "codex"])
+    # Use dummy provider tokens to exercise the generic provider path (i.e. not "claude" or "cmd").
+    launcher = ccb.AILauncher(providers=["provider_a", "provider_b", "codex"])
     launcher.terminal_type = "tmux"
 
     called: list[str] = []
@@ -43,7 +44,7 @@ def test_run_up_sorts_providers_in_tmux(monkeypatch, tmp_path: Path) -> None:
 
     rc = launcher.run_up()
     assert rc == 0
-    assert called == ["gemini", "opencode"]
+    assert called == ["provider_b", "provider_a"]
 
 
 def test_start_codex_tmux_writes_session_file(monkeypatch, tmp_path: Path) -> None:
