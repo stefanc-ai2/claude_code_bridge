@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Code Bridge (ccb) v5.2.0
+# Claude Code Bridge (ccb) v5.2.1
 
 **New Multi-Model Collaboration Tool via Split-Pane Terminal**
 **Claude & Codex & Gemini & OpenCode & Droid**
@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-5.2.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-5.2.1-orange.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml/badge.svg)](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml)
@@ -50,6 +50,20 @@
 <h2 align="center">🚀 What's New</h2>
 
 <details open>
+<summary><b>v5.2.1</b> - Enhanced Ask Command Stability</summary>
+
+**🔧 Stability Improvements:**
+- **Watchdog File Monitoring**: Real-time session updates with efficient file watching
+- **Mandatory Caller Field**: Improved request tracking and routing reliability
+- **Unified Execution Model**: Simplified ask skill execution across all platforms
+- **Auto-Dependency Installation**: Watchdog library installed automatically during setup
+- **Session Registry**: Enhanced Claude adapter with automatic session monitoring
+
+These improvements significantly enhance the reliability of cross-AI communication and reduce session binding failures.
+
+</details>
+
+<details>
 <summary><b>v5.2.0</b> - Email Integration for Remote AI Access</summary>
 
 **📧 New Feature: Mail Service**
