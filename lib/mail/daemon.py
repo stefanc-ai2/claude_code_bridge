@@ -11,6 +11,7 @@ Version 2 (deprecated): Pane-based notification system
 
 import json
 import os
+import subprocess
 import signal
 import sys
 import time
@@ -105,20 +106,81 @@ def remove_daemon_state() -> None:
         pid_path.unlink()
 
 
+def _read_pid_file() -> Optional[int]:
+    """Read PID from pid file."""
+    pid_path = get_pid_path()
+    if not pid_path.exists():
+        return None
+    try:
+        pid = int(pid_path.read_text().strip())
+        return pid if pid > 0 else None
+    except Exception:
+        return None
+
+
+def _is_process_alive(pid: int) -> bool:
+    """Check if process is alive, cross-platform."""
+    if pid <= 0:
+        return False
+
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            STILL_ACTIVE = 259
+
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if not handle:
+                return False
+
+            try:
+                exit_code = ctypes.c_ulong()
+                if kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)) == 0:
+                    return False
+                return exit_code.value == STILL_ACTIVE
+            finally:
+                kernel32.CloseHandle(handle)
+        except Exception:
+            return False
+
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError, SystemError):
+        return False
+
+
+def _get_running_pid(state: Optional[DaemonState]) -> Optional[int]:
+    """Resolve active daemon PID from state and pid file."""
+    candidates: List[int] = []
+    if state and state.pid:
+        candidates.append(state.pid)
+
+    pid_file = _read_pid_file()
+    if pid_file and pid_file not in candidates:
+        candidates.append(pid_file)
+
+    for pid in candidates:
+        if _is_process_alive(pid):
+            return pid
+    return None
+
+
 def is_daemon_running() -> bool:
     """Check if daemon is running."""
     state = read_daemon_state()
-    if not state:
-        return False
-
-    # Check if process is alive
-    try:
-        os.kill(state.pid, 0)
+    running_pid = _get_running_pid(state)
+    if running_pid:
+        if state and state.pid != running_pid:
+            state.pid = running_pid
+            write_daemon_state(state)
         return True
-    except (OSError, ProcessLookupError):
-        # Process not running, clean up stale state
-        remove_daemon_state()
-        return False
+
+    # Process not running, clean up stale state
+    remove_daemon_state()
+    return False
 
 
 class MailDaemon:
@@ -271,7 +333,33 @@ def start_daemon(foreground: bool = False) -> None:
     if foreground:
         daemon.start()
     else:
-        # Daemonize
+        # Windows fallback: spawn detached foreground process.
+        # os.fork() is not available on Windows.
+        if os.name == "nt":
+            project_root = Path(__file__).resolve().parents[2]
+            launcher = project_root / "bin" / "maild"
+            log_path = get_log_path()
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+
+            creationflags = 0
+            creationflags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            creationflags |= getattr(subprocess, "DETACHED_PROCESS", 0)
+
+            with open(log_path, "a", buffering=1) as log_file:
+                proc = subprocess.Popen(
+                    [sys.executable, str(launcher), "start", "--foreground"],
+                    stdin=subprocess.DEVNULL,
+                    stdout=log_file,
+                    stderr=log_file,
+                    cwd=str(project_root),
+                    close_fds=True,
+                    creationflags=creationflags,
+                )
+
+            print(f"[maild] Started in background (PID: {proc.pid})")
+            return
+
+        # Daemonize (POSIX)
         pid = os.fork()
         if pid > 0:
             print(f"[maild] Started in background (PID: {pid})")
@@ -296,26 +384,36 @@ def start_daemon(foreground: bool = False) -> None:
 def stop_daemon() -> bool:
     """Stop the mail daemon."""
     state = read_daemon_state()
-    if not state:
+    pid = None
+    if state:
+        pid = state.pid
+    if not pid:
+        pid = _read_pid_file()
+
+    if not pid:
         print("Mail daemon is not running")
         return False
 
+    if not _is_process_alive(pid):
+        print("Mail daemon is not running")
+        remove_daemon_state()
+        return False
+
     try:
-        os.kill(state.pid, signal.SIGTERM)
-        print(f"Sent SIGTERM to maild (PID: {state.pid})")
+        os.kill(pid, signal.SIGTERM)
+        print(f"Sent SIGTERM to maild (PID: {pid})")
 
         # Wait for process to exit
-        for _ in range(10):
-            try:
-                os.kill(state.pid, 0)
-                time.sleep(0.5)
-            except (OSError, ProcessLookupError):
+        for _ in range(20):
+            if not _is_process_alive(pid):
                 print("Mail daemon stopped")
+                remove_daemon_state()
                 return True
+            time.sleep(0.25)
 
         print("Warning: Daemon did not stop gracefully")
         return False
-    except (OSError, ProcessLookupError):
+    except (OSError, ProcessLookupError, SystemError):
         print("Mail daemon is not running")
         remove_daemon_state()
         return False
@@ -327,19 +425,21 @@ def get_daemon_status() -> dict:
     if not state:
         return {"running": False}
 
-    # Check if actually running
-    try:
-        os.kill(state.pid, 0)
+    running_pid = _get_running_pid(state)
+    if running_pid:
+        if state.pid != running_pid:
+            state.pid = running_pid
+            write_daemon_state(state)
         return {
             "running": True,
-            "pid": state.pid,
+            "pid": running_pid,
             "email": state.email,
             "started_at": state.started_at,
             "uptime": time.time() - state.started_at,
             "version": getattr(state, 'version', 1),
             "enabled_hooks": getattr(state, 'enabled_hooks', []),
         }
-    except (OSError, ProcessLookupError):
+    else:
         remove_daemon_state()
         return {"running": False}
 
