@@ -1,5 +1,5 @@
 ---
-name: AutoFlow Plan
+name: tp
 description: Create a task plan with collaborative design. Use when starting a new task or running /tp.
 ---
 

@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore[assignment]  # Windows
 
 
 @dataclass(frozen=True)
@@ -52,9 +55,14 @@ def _atomic_write_json(path: Path, value: dict[str, Any]) -> None:
 def _get_pane_id(repo: Path) -> str | None:
     if pane := os.environ.get("CLAUDE_PANE_ID"):
         return pane
-    session = _load_json(repo / ".claude-session")
-    if session and session.get("pane_id"):
-        return str(session["pane_id"])
+    for candidate in [
+        repo / ".ccb" / ".claude-session",
+        repo / ".ccb_config" / ".claude-session",
+        repo / ".claude-session",
+    ]:
+        session = _load_json(candidate)
+        if session and session.get("pane_id"):
+            return str(session["pane_id"])
     return None
 
 
@@ -288,7 +296,12 @@ def _has_remaining_work(state: dict[str, Any]) -> bool:
 def _acquire_lock(lock_path: Path) -> Any:
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     fp = lock_path.open("w")
-    fcntl.flock(fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    if fcntl is not None:
+        fcntl.flock(fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    else:
+        # Windows: best-effort exclusive open (no flock available)
+        import msvcrt
+        msvcrt.locking(fp.fileno(), msvcrt.LK_NBLCK, 1)
     fp.write(str(os.getpid()))
     fp.flush()
     return fp

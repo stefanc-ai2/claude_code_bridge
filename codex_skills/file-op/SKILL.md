@@ -1,5 +1,5 @@
 ---
-name: FileOps Executor
+name: file-op
 description: Execute FileOpsREQ protocol requests. Handles autoflow domain ops for .ccb/ state management.
 ---
 

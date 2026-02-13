@@ -1,5 +1,5 @@
 ---
-name: AutoFlow Run
+name: tr
 description: Execute current step in AutoFlow workflow. Use when running /tr or continuing task execution.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: Review
+name: review
 description: Dual review with Claude and Codex for quality verification. Use for step or task review.
 ---
 
