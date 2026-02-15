@@ -28,6 +28,14 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+PROVIDER_DISPLAY = {
+    "opencode": "OpenCode",
+}
+
+
+def display_name(provider: str) -> str:
+    return PROVIDER_DISPLAY.get(provider, provider.capitalize())
+
 script_dir = Path(__file__).resolve().parent
 lib_dir = script_dir.parent / "lib"
 sys.path.insert(0, str(lib_dir))
@@ -399,8 +407,8 @@ ASKEOF
         )
 
     print(f"[CCB_ASYNC_SUBMITTED provider={provider}]")
-    print(f"{provider.capitalize()} processing (task: {task_id})")
-    print(f"MANDATORY: END YOUR TURN NOW. Reply ONLY '{provider.capitalize()} processing...', then stop. See 'Async Guardrail' in CLAUDE.md.")
+    print(f"{display_name(provider)} processing (task: {task_id})")
+    print(f"MANDATORY: END YOUR TURN NOW. Reply ONLY '{display_name(provider)} processing...', then stop. See 'Async Guardrail' in CLAUDE.md.")
     return EXIT_OK
 
 
